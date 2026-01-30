@@ -10,7 +10,8 @@
     "Other"
   ],
   "activationEvents": [
-    "vscode.git-scm"
+    "vscode.git-scm",
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
