@@ -9,15 +9,27 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "vscode.git-scm"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "subtext.helloWorld",
-        "title": "Hello World"
+        "command": "subtext.generateCommit",
+        "title": "Generate SubText",
+        "icon": "$(sparkle)"
       }
-    ]
+    ],
+    "menus": {
+      "scm/title": [
+        {
+          "command": "subtext.generateCommit",
+          "group": "navigation",
+          "when": "scmProvider == git"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
