@@ -18,19 +18,24 @@
     "commands": [
       {
         "command": "subtext.generateCommit",
-        "title": "Generate SubText",
+        "title": "SubText: Generate Commit Message",
         "icon": "$(sparkle)"
       },
       {
         "command": "subtext.generateReadme",
-        "title": "Generate README",
+        "title": "SubText: Generate README",
         "icon": "$(book)"
       },
       {
         "command": "subtext.applyReadme",
-        "title": "Apply Draft to README.md",
+        "title": "SubText: Apply Draft to README.md",
         "icon": "$(check)",
         "enablement": "subtext.isDrafting"
+      },
+      {
+        "command": "subtext.showMenu",
+        "title": "SubText: Show SubText Actions",
+        "icon": "$(telescope)"
       }
     ],
     "menus": {
