@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { StatusBarManager } from './ui/StatusBar';
 import * as ReadmeCommands from './commands/Readme';
+import * as CommitCommands from './commands/Commit';
 import { setupGitWatcher } from './utils/Git';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -13,8 +14,8 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('subtext.showMenu', () => statusBar.showMenu()),
 
-		vscode.commands.registerCommand('subtext.generateCommit', () => {
-            vscode.window.showInformationMessage('✨ SubText: AI Generation coming soon...');
+		vscode.commands.registerCommand('subtext.generateCommit', async () => {
+            await CommitCommands.generateCommitMessage();
         }),
         
         vscode.commands.registerCommand('subtext.generateReadme', async () => {

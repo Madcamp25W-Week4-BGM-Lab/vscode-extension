@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { StatusBarManager } from '../ui/StatusBar';
+import { promises } from 'dns';
 
 // --- INTERFACES FOR VS CODE GIT API ---
 interface GitExtension {
@@ -91,5 +92,43 @@ function checkGitStatus(statusBar: StatusBarManager) {
         const totalLines = insertions + deletions;
 
         statusBar.refreshUI(totalLines);
+    });
+}
+
+// getStagedDiff: executes diff with the preprocessing steps ==> called in Commit.ts
+export function getStagedDiff(rootPath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        // Define what files to ignore even if changed
+        // TODO: these exclusions will depend on the project type 
+        const exclusions = [
+            ':!package-lock.json',
+            ':!yarn.lock',
+            ':!pnpm-lock.yaml',
+            ':!*.svg',
+            ':!*.png',
+            ':!*.jpg',
+            ':!dist/*',
+            ':!build/*',
+            ':!node_modules/*'
+        ].join(' ');
+
+        // Build the command 
+        // --cached: only look at staged changes
+        // --diff-filter=ACMR: ignore deleted changes 
+        // --w: ignore whitespace changes 
+        const command = `git diff --cached --diff-filter=ACMR -w -- . ${exclusions}`;
+
+        exec(command, { cwd: rootPath }, (error, stdout, stderr) => {
+            if (error) {
+                // If it's just empty (no output), that's fine
+                if (!stdout && !stderr) {
+                    resolve('');
+                    return;
+                }
+                reject(stderr || error.message);
+                return;
+            }
+            resolve(stdout);
+        });
     });
 }
