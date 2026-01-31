@@ -18,8 +18,24 @@
     "commands": [
       {
         "command": "subtext.generateCommit",
-        "title": "Generate SubText",
+        "title": "SubText: Generate Commit Message",
         "icon": "$(sparkle)"
+      },
+      {
+        "command": "subtext.generateReadme",
+        "title": "SubText: Generate README",
+        "icon": "$(book)"
+      },
+      {
+        "command": "subtext.applyReadme",
+        "title": "SubText: Apply Draft to README.md",
+        "icon": "$(check)",
+        "enablement": "subtext.isDrafting"
+      },
+      {
+        "command": "subtext.showMenu",
+        "title": "SubText: Show SubText Actions",
+        "icon": "$(telescope)"
       }
     ],
     "menus": {
@@ -28,6 +44,18 @@
           "command": "subtext.generateCommit",
           "group": "navigation",
           "when": "scmProvider == git"
+        }
+      ],
+      "editor/title": [
+        {   
+          "command": "subtext.generateReadme",
+          "group": "navigation",
+          "when": "resourceLangId == markdown && !subtext.isDrafting"
+        },
+        {
+          "command": "subtext.applyReadme",
+          "group": "navigation",
+          "when": "resourceScheme == untitled && subtext.isDrafting"
         }
       ]
     }
