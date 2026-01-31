@@ -19,28 +19,34 @@ let statusBarItem: vscode.StatusBarItem;
 export function activate(context: vscode.ExtensionContext) {
 	console.log('SubText is now active!');
 
-	// Register command for generating commit
-	let disposable = vscode.commands.registerCommand('subtext.generateCommit', () => {
+	// --- REGISTER COMMANDS --- 
+	// command: generating commit
+	context.subscriptions.push(vscode.commands.registerCommand('subtext.generateCommit', () => {
 		vscode.window.showInformationMessage('✨ SubText: AI Generation coming soon...');
-	});
-	context.subscriptions.push(disposable);
+	}));
 
-	// Register command for generating readme
-	let generateReadmeDisposable = vscode.commands.registerCommand('subtext.generateReadme', async () => {
+	// command: generating readme
+	context.subscriptions.push(vscode.commands.registerCommand('subtext.generateReadme', async () => {
         await startDraftMode();
-    });
-	context.subscriptions.push(generateReadmeDisposable);
+    }));
 
-	// Register command for generating readme
-	let applyReadmeDisposable = vscode.commands.registerCommand('subtext.applyReadme', async () => {
+	// command: generating readme
+	context.subscriptions.push(vscode.commands.registerCommand('subtext.applyReadme', async () => {
         await applyDraftMode();
-    });
-	context.subscriptions.push(applyReadmeDisposable);
+    }));
 
-	// Create the Status Bar Item
+	// command: show menu 
+	context.subscriptions.push(vscode.commands.registerCommand('subtext.showMenu', async () => {
+		await showSubTextMenu();
+	}));
+
+	// --- SETUP STATUS BAR --- 
 	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-	statusBarItem.text = "$(sync~spin) SubText: Initializing...";
-	statusBarItem.show();
+	statusBarItem.command = 'subtext.showMenu';
+	statusBarItem.tooltip = "Click to open SubText actions";
+	statusBarItem.text = "$(telescope) SubText: Ready";
+    statusBarItem.show();
+
 	context.subscriptions.push(statusBarItem);
 
 	// Watching for file saves (Ctrl+S) 
@@ -71,6 +77,33 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// run on startup just in case
 	updateDiffStatus();	
+}
+
+// showSubTextMenu: shows all possible SubText actions
+async function showSubTextMenu() {
+	const options = [
+		{ 
+            label: '$(sparkle) Generate Commit', 
+            detail: 'Analyze staged changes and write a commit message', 
+            command: 'subtext.generateCommit' 
+        },
+        { 
+            label: '$(book) Generate README', 
+            detail: 'Create or update project documentation (Draft Mode)', 
+            command: 'subtext.generateReadme' 
+        }
+	];
+
+	// Show the options
+	const selection = await vscode.window.showQuickPick(options, {
+		placeHolder: "SubText: What would you like to do?",
+		title: 'SubText AI Actions'
+	});
+
+	// Run the selected command
+	if (selection) {
+		vscode.commands.executeCommand(selection.command);
+	}
 }
 
 // watchRepo: subscribes to changes in git repository
