@@ -98,27 +98,20 @@ function checkGitStatus(statusBar: StatusBarManager) {
 }
 
 // getStagedDiff: executes diff with the preprocessing steps ==> called in Commit.ts
-export function getStagedDiff(rootPath: string): Promise<string> {
+export function getStagedDiff(rootPath: string, ignorePatterns: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
         // Define what files to ignore even if changed
-        // TODO: these exclusions will depend on the project type 
-        const exclusions = [
-            ':!package-lock.json',
-            ':!yarn.lock',
-            ':!pnpm-lock.yaml',
-            ':!*.svg',
-            ':!*.png',
-            ':!*.jpg',
-            ':!dist/*',
-            ':!build/*',
-            ':!node_modules/*'
-        ].join(' ');
+        // Add ! for exclusion if not exist
+        const formattedExclusions = ignorePatterns
+            .filter(p => p.trim().length > 0)
+            .map(pattern => pattern.startsWith(':!') ? pattern : `:!${pattern}`)
+            .join(' ');
 
         // Build the command 
         // --cached: only look at staged changes
         // --diff-filter=ACMR: ignore deleted changes 
         // --w: ignore whitespace changes 
-        const command = `git diff --cached --diff-filter=ACMR -w -- . ${exclusions}`;
+        const command = `git diff --cached --diff-filter=ACMR -w -- . ${formattedExclusions}`;
 
         exec(command, { cwd: rootPath }, (error, stdout, stderr) => {
             if (error) {
@@ -131,6 +124,31 @@ export function getStagedDiff(rootPath: string): Promise<string> {
                 return;
             }
             resolve(stdout);
+        });
+    });
+}
+
+// getRecentCommits: gets the commit messages from last (count) commits ==> called in Commit
+export function getRecentCommits(rootPath: string, count: number): Promise<string[]> {
+    return new Promise((resolve) => {
+        // %B: Raw body (Subject + Body)
+        // -n: Limit number of commits
+        const command = `git log -n ${count} --pretty=format:"%B%n---COMMIT_DELIMITER---"`;
+
+        exec(command, { cwd: rootPath }, (error, stdout, stderr) => {
+            if (error) {
+                // If there are no commits yet (new repo), just return empty
+                resolve([]);
+                return;
+            }
+
+            // Split by our custom delimiter and clean up empty strings
+            const commits = stdout
+                .split('---COMMIT_DELIMITER---')
+                .map(c => c.trim())
+                .filter(c => c.length > 0);
+
+            resolve(commits);
         });
     });
 }

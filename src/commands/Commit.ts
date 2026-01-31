@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
-import { getStagedDiff } from '../utils/Git';
+import { getStagedDiff, getRecentCommits } from '../utils/Git';
 import { logError, logInfo, showLog } from '../utils/Logger';
+import { getProjectConfig } from '../utils/Config';
 
 export async function generateCommitMessage() {
     // Safety Checks 
@@ -11,11 +12,14 @@ export async function generateCommitMessage() {
     }
     const rootPath = workspaceFolders[0].uri.fsPath;
 
+    // Load Config
+    const config = await getProjectConfig(rootPath);
+
     // Get the Preprocessed Diff (Client-Side Preprocessing)
     // Accesses method getStagedDiff from Git.ts
     let diff = "";
     try {
-        diff = await getStagedDiff(rootPath);
+        diff = await getStagedDiff(rootPath, config.ignores);
     } catch (err) {
         vscode.window.showErrorMessage(`SubText Git Error: ${err}`);
         return;
@@ -27,7 +31,27 @@ export async function generateCommitMessage() {
         return;
     }
 
-    logInfo(diff);
+    // Fetch History 
+    let pastCommits: string[] = [];
+    if (config.history.enabled) {
+        try {
+            pastCommits = await getRecentCommits(rootPath, config.history.count);
+        } catch (err) {
+            logError("Failed to fetch history, proceeding without it", err);
+        }
+    }
+
+    const payload = {
+        diff: diff,
+        config: {
+            project_descriptions: config.context,
+            style: config.style,
+            rules: config.rules
+        },
+        history: pastCommits
+    };
+
+    logInfo("Sending Payload: ", payload);
 
     // UI Feedback 
     // TODO: is this really the best place for this?
@@ -41,10 +65,7 @@ export async function generateCommitMessage() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                diff: diff,
-                project_name: workspaceFolders[0].name,
-            })
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
