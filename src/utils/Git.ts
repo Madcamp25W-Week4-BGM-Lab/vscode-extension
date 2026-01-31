@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import { StatusBarManager } from '../ui/StatusBar';
 import { promises } from 'dns';
+import { logError, showLog } from '../utils/Logger';
 
 // --- INTERFACES FOR VS CODE GIT API ---
 interface GitExtension {
@@ -40,7 +41,8 @@ export function setupGitWatcher(context: vscode.ExtensionContext, statusBar: Sta
             });
         }
     } catch (err) {
-        console.error("Could not load Git extension:", err);
+        logError('Error: Could not load Git extension:', err);
+        showLog();
     }
 
     // Initial Check

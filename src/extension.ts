@@ -3,9 +3,11 @@ import { StatusBarManager } from './ui/StatusBar';
 import * as ReadmeCommands from './commands/Readme';
 import * as CommitCommands from './commands/Commit';
 import { setupGitWatcher } from './utils/Git';
+import { activateLogger, logInfo } from './utils/Logger';
 
 export function activate(context: vscode.ExtensionContext) {
-	console.log('SubText is active!');
+	activateLogger(context);
+	logInfo("Extension Activating...");
 
 	// Initialize UI Manager
 	const statusBar = new StatusBarManager(context);

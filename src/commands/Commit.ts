@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getStagedDiff } from '../utils/Git';
+import { logError, logInfo, showLog } from '../utils/Logger';
 
 export async function generateCommitMessage() {
     // Safety Checks 
@@ -26,7 +27,7 @@ export async function generateCommitMessage() {
         return;
     }
 
-    console.log(diff);
+    logInfo(diff);
 
     // UI Feedback 
     // TODO: is this really the best place for this?
@@ -63,9 +64,10 @@ export async function generateCommitMessage() {
                 vscode.window.showInformationMessage('✨ Commit message generated!');
             }
         }
-    } catch (error) {
+    } catch (err) {
         vscode.window.showErrorMessage('SubText Connection Error: ${error}');
-        console.error(error);
+        logError("", err);
+        showLog();
     }
 
 }
