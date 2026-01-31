@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { StatusBarManager } from './ui/StatusBar';
 import * as ReadmeCommands from './commands/Readme';
 import * as CommitCommands from './commands/Commit';
+import * as InitCommands from './commands/Init';
 import { setupGitWatcher } from './utils/Git';
 import { activateLogger, logInfo } from './utils/Logger';
 
@@ -26,7 +27,11 @@ export function activate(context: vscode.ExtensionContext) {
         
         vscode.commands.registerCommand('subtext.applyReadme', async () => {
             await ReadmeCommands.applyDraftMode();
-        })
+        }),
+
+		vscode.commands.registerCommand('subtext.init', async () => {
+			await InitCommands.createConfigFile();
+		})
 	);
 
 	setupGitWatcher(context, statusBar);

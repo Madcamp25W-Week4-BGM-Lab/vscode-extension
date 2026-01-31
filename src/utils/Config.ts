@@ -16,7 +16,7 @@ export interface SubTextConfig {
 }
 
 // Defaults
-const DEFAULT_CONFIG: SubTextConfig = {
+export const DEFAULT_CONFIG: SubTextConfig = {
     context: "",
     style: {
         convention: "conventional",
@@ -48,11 +48,13 @@ export async function getProjectConfig(rootPath: string): Promise<SubTextConfig>
         const userConfig = JSON.parse(jsonContent);
         // merge user config with defaults 
         return {
-            context: userConfig.context || DEFAULT_CONFIG.context, // <--- Load it here
+            context: userConfig.context || DEFAULT_CONFIG.context, 
+            // merge
             style: { ...DEFAULT_CONFIG.style, ...userConfig.style },
-            rules: userConfig.rules || DEFAULT_CONFIG.rules,
             history: { ...DEFAULT_CONFIG.history, ...userConfig.history },
-            ignores: [...DEFAULT_CONFIG.ignores, ...(userConfig.ignores || [])]
+            // replace 
+            rules: userConfig.rules ?? DEFAULT_CONFIG.rules,
+            ignores: DEFAULT_CONFIG.ignores ?? userConfig.ignores
         };
     } catch (error) {
         return DEFAULT_CONFIG;

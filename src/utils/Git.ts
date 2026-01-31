@@ -101,29 +101,56 @@ function checkGitStatus(statusBar: StatusBarManager) {
 export function getStagedDiff(rootPath: string, ignorePatterns: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
         // Define what files to ignore even if changed
-        // Add ! for exclusion if not exist
-        const formattedExclusions = ignorePatterns
+        // Add ':!' for exclusion if not exist
+        const exlusionArgs = ignorePatterns
             .filter(p => p.trim().length > 0)
             .map(pattern => pattern.startsWith(':!') ? pattern : `:!${pattern}`)
             .join(' ');
 
-        // Build the command 
+        // Checks what files should be included (for System Note check)
+        // Removes ':!' for inclusion if they exist
+        const inclusionArgs = ignorePatterns
+            .map(p => p.replace(/^:!/, ''))
+            .filter(p => p.trim().length > 0)
+            .join(' ');
+
+        // COMMAND A: Get the Clean Diff
         // --cached: only look at staged changes
         // --diff-filter=ACMR: ignore deleted changes 
         // --w: ignore whitespace changes 
-        const command = `git diff --cached --diff-filter=ACMR -w -- . ${formattedExclusions}`;
+        const cleanCommand = `git diff --cached --diff-filter=ACMR -w -- . ${exlusionArgs}`;
 
-        exec(command, { cwd: rootPath }, (error, stdout, stderr) => {
+        exec(cleanCommand, { cwd: rootPath }, (error, cleanStdout, stderr) => {
             if (error) {
-                // If it's just empty (no output), that's fine
-                if (!stdout && !stderr) {
-                    resolve('');
-                    return;
-                }
+                if (!cleanStdout && !stderr) { resolve(''); return; }
                 reject(stderr || error.message);
                 return;
             }
-            resolve(stdout);
+
+            // If there are no ignore patterns, we are done
+            if (inclusionArgs.length === 0) {
+                resolve(cleanStdout);
+                return;
+            }
+
+            // COMMAND B: Check for "Ignored but should Stage"
+            const ignoredCheckCommand = `git diff --cached --name-only --diff-filter=ACMR -- ${inclusionArgs}`;
+
+            exec(ignoredCheckCommand, { cwd: rootPath }, (err2, ignoredNames, stderr2) => {
+                if (err2) {
+                    resolve(cleanStdout);
+                    return;
+                }
+
+                if (ignoredNames.trim().length > 0) {
+                    const formattedNames = ignoredNames.trim().split('\n').map(n => `- ${n}`).join('\n');
+                    const systemNote = `\n\n[SYSTEM NOTE: The following files were modified but their content is hidden to save tokens:]\n${formattedNames}`;
+                    
+                    resolve(cleanStdout + systemNote);
+                } else {
+                    resolve(cleanStdout);
+                }
+            });
         });
     });
 }
