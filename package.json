@@ -17,6 +17,11 @@
   "contributes": {
     "commands": [
       {
+        "command": "subtext.init",
+        "title": "SubText: Initialize Config",
+        "category": "SubText"
+      },
+      {
         "command": "subtext.generateCommit",
         "title": "SubText: Generate Commit Message",
         "icon": "$(sparkle)"

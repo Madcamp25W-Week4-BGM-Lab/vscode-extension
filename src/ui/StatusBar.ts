@@ -90,6 +90,11 @@ export class StatusBarManager {
                 label: '$(book) Generate README', 
                 detail: 'Create or update project documentation (Draft Mode)', 
                 command: 'subtext.generateReadme' 
+            },
+            {
+                label: '$(gear) Initialize Config',
+                detail: 'Create a .subtext.json configuration file',
+                command: 'subtext.init'
             }
         ];
 
