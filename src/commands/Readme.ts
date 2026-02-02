@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { pollForCommit, BACKEND_URL, CommitPollResponse } from '../utils/Network';
 
 type FactJson = {
 	repository: { name: string; type: string };
@@ -82,7 +83,7 @@ async function fetchReadme(payload: {
 	doc_target: 'extension';
 	async: false;
 }) {
-	const response = await fetch('http://localhost:8000/api/readme/generate', {
+	const response = await fetch(`${BACKEND_URL}/api/v1/generate-readme`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
