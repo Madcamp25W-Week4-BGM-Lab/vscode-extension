@@ -2,7 +2,9 @@ import * as vscode from 'vscode';
 import { getStagedDiff, getRecentCommits } from '../utils/Git';
 import { logError, logInfo, showLog } from '../utils/Logger';
 import { getProjectConfig } from '../utils/Config';
+import { pollForCompletion, BACKEND_URL, TaskResponse } from '../utils/Network';
 
+// generateCommitMessage: generates the commit message once button is pressed 
 export async function generateCommitMessage() {
     // Safety Checks 
     const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -41,6 +43,7 @@ export async function generateCommitMessage() {
         }
     }
 
+    // Construct Payload
     const payload = {
         diff: diff,
         config: {
@@ -53,14 +56,14 @@ export async function generateCommitMessage() {
 
     logInfo("Sending Payload: ", payload);
 
-    // UI Feedback 
-    // TODO: is this really the best place for this?
-    vscode.window.setStatusBarMessage('$(sync~spin) SubText: Generating commit...', 3000);
-
-    // Send to Server (TODO)
-    // need to create this endpoint
+    // Start ASYNC RELAY (polling server to check completion)
     try {
-        const response = await fetch('http://localhost:8000/generate-commit', {
+        // UI Feedback 
+        // TODO: is this really the best place for this?
+        vscode.window.setStatusBarMessage(`$(sync~spin) SubText: Generating commit...`, 3000);
+        
+        // Create Task 
+        const initialResponse = await fetch(`${BACKEND_URL}/api/v1/generate-commit`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -68,12 +71,18 @@ export async function generateCommitMessage() {
             body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-            throw new Error('Server returned ${response.status}');
+        if (!initialResponse.ok) {
+            throw new Error(`Server Error: ${initialResponse.statusText}`);
         }
 
         // Handle Response
-        const data = await response.json() as { commit_message: string };
+        const taskData = await initialResponse.json() as TaskResponse;
+        const taskId = taskData.task_id;
+
+        logInfo(`Task Created: ${taskId}. Starting polling...`);
+
+        // Poll for results 
+        const finalCommitMessage = await pollForCompletion(taskId);
 
         // Insert into Git Input Box
         const gitExtension = vscode.extensions.getExtension('vscode.git');
@@ -81,14 +90,16 @@ export async function generateCommitMessage() {
             const git = gitExtension.exports.getAPI(1);
             const repo = git.repositories[0];
             if (repo) {
-                repo.inputBox.value = data.commit_message;
+                repo.inputBox.value = finalCommitMessage;
                 vscode.window.showInformationMessage('✨ Commit message generated!');
+                logInfo("Commit message generated successfully");
             }
         }
     } catch (err) {
-        vscode.window.showErrorMessage('SubText Connection Error: ${error}');
+        vscode.window.showErrorMessage(`SubText Error: ${err}`);
         logError("", err);
         showLog();
+    } finally {
+        vscode.window.setStatusBarMessage(''); // Clear status bar
     }
-
 }

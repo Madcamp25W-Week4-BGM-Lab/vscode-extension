@@ -43,7 +43,7 @@ export class StatusBarManager {
             this.item.text = "$(circle-slash) SubText: Not a Git Repo";
             this.item.tooltip = "The current folder is not a git repository. Run 'git init'.";
         } else {
-            this.item.text = "$(bug) SubText: Git Error";
+            this.item.text = `$(bug) SubText: Git Error`;
             this.item.tooltip = `Error: ${errorMsg}`;
         }
         this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
