@@ -60,7 +60,7 @@ export async function generateCommitMessage() {
     try {
         // UI Feedback 
         // TODO: is this really the best place for this?
-        vscode.window.setStatusBarMessage('$(sync~spin) SubText: Generating commit...', 3000);
+        vscode.window.setStatusBarMessage(`$(sync~spin) SubText: Generating commit...`, 3000);
         
         // Create Task 
         const initialResponse = await fetch(`${BACKEND_URL}/api/v1/generate-commit`, {
@@ -72,14 +72,14 @@ export async function generateCommitMessage() {
         });
 
         if (!initialResponse.ok) {
-            throw new Error('Server Error: ${response.statusText}');
+            throw new Error(`Server Error: ${initialResponse.statusText}`);
         }
 
         // Handle Response
         const taskData = await initialResponse.json() as TaskResponse;
         const taskId = taskData.task_id;
 
-        logInfo('Task Created: ${taskId}. Starting polling...');
+        logInfo(`Task Created: ${taskId}. Starting polling...`);
 
         // Poll for results 
         const finalCommitMessage = await pollForCompletion(taskId);
@@ -96,7 +96,7 @@ export async function generateCommitMessage() {
             }
         }
     } catch (err) {
-        vscode.window.showErrorMessage('SubText Error: ${err}');
+        vscode.window.showErrorMessage(`SubText Error: ${err}`);
         logError("", err);
         showLog();
     } finally {
