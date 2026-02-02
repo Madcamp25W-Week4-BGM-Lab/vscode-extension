@@ -1,7 +1,84 @@
 import * as vscode from 'vscode';
 
+type FactJson = {
+	repository: { name: string; type: string };
+	runtime?: {
+		frontend: { framework: string; language: string };
+		backend?: { language: string };
+	};
+	scripts?: { dev?: string; build?: string; start?: string };
+};
+
+async function buildFactJson(workspaceFolder: vscode.WorkspaceFolder): Promise<FactJson> {
+	const rootUri = workspaceFolder.uri;
+
+	let hasPackageJson = false;
+	let scripts: { dev?: string; build?: string; start?: string } | undefined;
+
+	try {
+		const packageJsonUri = vscode.Uri.joinPath(rootUri, 'package.json');
+		const data = await vscode.workspace.fs.readFile(packageJsonUri);
+		const text = new TextDecoder().decode(data);
+		const parsed = JSON.parse(text) as { scripts?: Record<string, string> };
+		hasPackageJson = true;
+
+		if (parsed.scripts) {
+			const maybeScripts: { dev?: string; build?: string; start?: string } = {};
+			if (parsed.scripts.dev) { maybeScripts.dev = parsed.scripts.dev; }
+			if (parsed.scripts.build) { maybeScripts.build = parsed.scripts.build; }
+			if (parsed.scripts.start) { maybeScripts.start = parsed.scripts.start; }
+			if (Object.keys(maybeScripts).length > 0) {
+				scripts = maybeScripts;
+			}
+		}
+	} catch {
+		// package.json missing or unreadable: skip scripts
+	}
+
+	// Extension entrypoints in root (best-effort)
+	let hasExtensionEntry = false;
+	try {
+		await vscode.workspace.fs.stat(vscode.Uri.joinPath(rootUri, 'extension.ts'));
+		hasExtensionEntry = true;
+	} catch {}
+	if (!hasExtensionEntry) {
+		try {
+			await vscode.workspace.fs.stat(vscode.Uri.joinPath(rootUri, 'extension.js'));
+			hasExtensionEntry = true;
+		} catch {}
+	}
+
+	// Detect backend presence by any .py file
+	let hasPython = false;
+	try {
+		const matches = await vscode.workspace.findFiles('**/*.py', '**/node_modules/**', 1);
+		hasPython = matches.length > 0;
+	} catch {
+		// ignore search errors
+	}
+
+	const runtime: FactJson['runtime'] = {
+		frontend: {
+			framework: 'VS Code Extension',
+			language: 'TypeScript'
+		}
+	};
+	if (hasPython) {
+		runtime.backend = { language: 'Python' };
+	}
+
+	return {
+		repository: {
+			name: workspaceFolder.name,
+			type: hasPackageJson || hasExtensionEntry ? 'tool' : 'tool'
+		},
+		runtime,
+		...(scripts ? { scripts } : {})
+	};
+}
+
 async function fetchReadme(payload: {
-	fact: { repository: { name: string; type: string } };
+	fact: FactJson;
 	mode: 'draft';
 	doc_target: 'extension';
 	async: false;
@@ -37,15 +114,13 @@ export async function startDraftMode() {
         return;
     }
 
-	const fact = {
-		repository: {
-			name: workspaceFolders[0].name,
-			type: 'tool'
-		}
-	};
-
-	// TODO: runtime/scripts auto-collection
-	const payload = {
+	const fact = await buildFactJson(workspaceFolders[0]);
+	const payload: {
+		fact: FactJson;
+		mode: 'draft';
+		doc_target: 'extension';
+		async: false;
+	} = {
 		fact,
 		mode: 'draft',
 		doc_target: 'extension',
