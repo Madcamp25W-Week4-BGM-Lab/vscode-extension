@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 type FactJson = {
 	repository: { name: string; type: string };
 	runtime?: {
-		frontend: { framework: string; language: string };
+		frontend: { framework: string };
 		backend?: { language: string };
 	};
 	scripts?: { dev?: string; build?: string; start?: string };
@@ -59,8 +59,7 @@ async function buildFactJson(workspaceFolder: vscode.WorkspaceFolder): Promise<F
 
 	const runtime: FactJson['runtime'] = {
 		frontend: {
-			framework: 'VS Code Extension',
-			language: 'TypeScript'
+			framework: 'VS Code Extension'
 		}
 	};
 	if (hasPython) {
@@ -70,7 +69,7 @@ async function buildFactJson(workspaceFolder: vscode.WorkspaceFolder): Promise<F
 	return {
 		repository: {
 			name: workspaceFolder.name,
-			type: hasPackageJson || hasExtensionEntry ? 'tool' : 'tool'
+			type: 'tool'
 		},
 		runtime,
 		...(scripts ? { scripts } : {})
@@ -92,7 +91,8 @@ async function fetchReadme(payload: {
 	});
 
 	if (!response.ok) {
-		throw new Error(`Server returned ${response.status}`);
+		const body = await response.text();
+		throw new Error(`${response.status}: ${body}`);
 	}
 
 	return await response.json() as {
@@ -114,7 +114,13 @@ export async function startDraftMode() {
         return;
     }
 
-	const fact = await buildFactJson(workspaceFolders[0]);
+	let fact: FactJson;
+	try {
+		fact = await buildFactJson(workspaceFolders[0]);
+	} catch (err) {
+		vscode.window.showErrorMessage(`SubText: Failed to build Fact JSON. ${err}`);
+		return;
+	}
 	const payload: {
 		fact: FactJson;
 		mode: 'draft';
