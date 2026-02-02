@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { getStagedDiff, getRecentCommits } from '../utils/Git';
 import { logError, logInfo, showLog } from '../utils/Logger';
 import { getProjectConfig } from '../utils/Config';
-import { pollForCompletion, BACKEND_URL, TaskResponse } from '../utils/Network';
+import { pollForCommit, BACKEND_URL, CommitPollResponse } from '../utils/Network';
 
 // generateCommitMessage: generates the commit message once button is pressed 
 export async function generateCommitMessage() {
@@ -76,13 +76,13 @@ export async function generateCommitMessage() {
         }
 
         // Handle Response
-        const taskData = await initialResponse.json() as TaskResponse;
+        const taskData = await initialResponse.json() as CommitPollResponse;
         const taskId = taskData.task_id;
 
         logInfo(`Task Created: ${taskId}. Starting polling...`);
 
         // Poll for results 
-        const finalCommitMessage = await pollForCompletion(taskId);
+        const finalCommitMessage = await pollForCommit(taskId);
 
         // Insert into Git Input Box
         const gitExtension = vscode.extensions.getExtension('vscode.git');

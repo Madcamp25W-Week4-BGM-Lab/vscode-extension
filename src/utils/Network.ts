@@ -3,16 +3,16 @@ import * as vscode from 'vscode';
 
 export const BACKEND_URL = 'http://127.0.0.1:8000';
 
-export interface TaskResponse {
+export interface CommitPollResponse {
     task_id: string;
     status: 'pending' | 'processing' | 'completed' | 'failed';
-    message?: string;
-    result?: string;
+    commit_message?: string;
+    error?: string;
 }
 
 // pollForCompletion: checks every 1 second to check if task is done
 //      Used in Commit and Readme Commands
-export async function pollForCompletion(taskId: string): Promise<string> {
+export async function pollForCommit(taskId: string): Promise<string> {
     const POLL_INTERVAL_MS = 1000;
     const MAX_RETRIES = 60; // 60 seconds timeout
 
@@ -21,19 +21,19 @@ export async function pollForCompletion(taskId: string): Promise<string> {
         
         const interval = setInterval(async () => {
             attempts++;
-            
+
             // UI Feedback during waiting
             vscode.window.setStatusBarMessage(`$(sync~spin) SubText: Thinking... (${attempts}s)`);
 
             try {
-                const res = await fetch(`${BACKEND_URL}/tasks/${taskId}`);
+                const res = await fetch(`${BACKEND_URL}/api/v1/tasks/${taskId}`);
                 if (!res.ok) {throw new Error("Failed to check status"); }
 
-                const task = await res.json() as TaskResponse;
+                const task = await res.json() as CommitPollResponse;
 
-                if (task.status === 'completed' && task.result) {
+                if (task.status === 'completed' && task.commit_message) {
                     clearInterval(interval);
-                    resolve(task.result);
+                    resolve(task.commit_message);
                 } 
                 else if (task.status === 'failed') {
                     clearInterval(interval);
