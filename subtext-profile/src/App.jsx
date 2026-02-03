@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { 
   GitCommit, GitPullRequest, GitMerge, AlertTriangle, 
-  Terminal, Activity, Share2, Hash, Code, Cpu 
+  Terminal, Activity, Share2, Hash, Code, Cpu, Zap 
 } from 'lucide-react';
+import AsciiPortrait from './AsciiPortrait';
 
-// --- Theme Config (V7 Palette - Deep Black) ---
+// --- 1. THEME CONFIG (Deep Black V7) ---
 const COLORS = {
   bg: "bg-[#09090b]",       // Deepest Black/Zinc
   window: "bg-[#0c0c0e]",   // Slightly lighter window bg
@@ -43,7 +44,7 @@ const LOGS = [
   { time: "14:08:45", type: "ACXD", event: "AUTO_MERGE", msg: "Pattern match found. Synergy 98%.", status: "success" }
 ];
 
-// --- Components ---
+// --- 1. COMPONENTS ---
 
 const CircuitBackground = () => (
   <div className="fixed inset-0 z-0 opacity-10 pointer-events-none">
@@ -54,7 +55,6 @@ const CircuitBackground = () => (
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#grid)" />
-      {/* Abstract Tech Lines */}
       <path d="M 100 0 V 1000" stroke="#333" strokeWidth="1" />
       <path d="M 300 0 V 1000" stroke="#333" strokeWidth="1" />
       <path d="M 80% 0 V 1000" stroke="#333" strokeWidth="1" />
@@ -73,7 +73,6 @@ const TrafficLights = () => (
   </div>
 );
 
-// --- UPDATED STAT BAR: SMOOTH & THICK ---
 const StatBar = ({ labelL, labelR, score, color }) => {
   const [width, setWidth] = useState(0);
   const isLeft = score >= 50;
@@ -83,20 +82,15 @@ const StatBar = ({ labelL, labelR, score, color }) => {
 
   return (
     <div className="mb-6 font-mono text-[10px] md:text-xs w-full">
-      {/* 1. Labels Row (Terminal Style) */}
+      {/* Labels Row */}
       <div className="flex justify-between mb-1.5 opacity-80 font-bold tracking-tight">
         <span className={isLeft ? 'text-white' : 'text-gray-600'}>{`<${labelL} />`}</span>
         <span className={!isLeft ? 'text-white' : 'text-gray-600'}>{`<${labelR} />`}</span>
       </div>
 
-      {/* 2. The Smooth Track */}
-      {/* Changed: Removed grid lines, increased height to h-4 (thicker), kept border */}
+      {/* The Smooth Track (Thick, Smooth, No Blocks) */}
       <div className="h-4 bg-[#1a1a1a] border border-[#333] w-full flex relative overflow-hidden rounded-sm">
-        
-        {/* Center Line Marker (Kept for precision feel) */}
         <div className="absolute left-1/2 w-[1px] h-full bg-[#444] z-10"></div>
-
-        {/* The Colored Fill (Smooth, no blocks) */}
         <div 
           className={`h-full transition-all duration-1000 ease-out ${color} opacity-90`}
           style={{ 
@@ -107,7 +101,7 @@ const StatBar = ({ labelL, labelR, score, color }) => {
         />
       </div>
 
-      {/* 3. Numbers Row */}
+      {/* Numbers Row */}
       <div className="flex justify-between mt-1 text-[10px] text-gray-500 font-mono">
         <span className={isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{targetPct}%</span>
         <span className={!isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{targetPct}%</span>
@@ -116,16 +110,16 @@ const StatBar = ({ labelL, labelR, score, color }) => {
   );
 };
 
+// --- 2. MAIN APP ---
 export default function App() {
   return (
     <div className={`min-h-screen ${COLORS.bg} text-gray-400 font-sans selection:bg-blue-500/20 flex items-center justify-center p-4 md:p-8`}>
       
       <CircuitBackground />
 
-      {/* --- THE MAIN WINDOW --- */}
       <div className={`relative z-10 w-full max-w-5xl ${COLORS.window} border ${COLORS.border} rounded-xl shadow-2xl overflow-hidden flex flex-col animate-fade-in`}>
         
-        {/* Window Header */}
+        {/* Header */}
         <div className="px-5 py-4 border-b border-[#27272a] flex justify-between items-center bg-[#0f0f11]">
           <div className="flex items-center gap-4">
              <TrafficLights />
@@ -139,13 +133,11 @@ export default function App() {
           </button>
         </div>
 
-        {/* Main Body */}
         <div className="flex flex-col md:flex-row">
            
-           {/* LEFT PANEL: IDENTITY (JSON & INFO) */}
+           {/* LEFT PANEL */}
            <div className="md:w-3/5 p-8 border-r border-[#27272a]">
               
-              {/* Header Badge */}
               <div className="mb-8 flex items-end justify-between">
                  <div>
                     <div className="text-[10px] font-bold text-blue-500 mb-1 tracking-[0.2em] uppercase">profile.json</div>
@@ -158,10 +150,14 @@ export default function App() {
                  </div>
               </div>
 
+              {/* INTEGRATED ASCII PORTRAIT */}
+              <div className="mb-8">
+                 <AsciiPortrait type={MOCK_RESULT.type} />
+              </div>
+
               {/* JSON Editor View */}
               <div className={`${COLORS.panel} border border-[#27272a] rounded-lg p-6 font-mono text-xs md:text-sm shadow-inner relative group`}>
                  <div className="absolute top-2 right-2 text-[10px] text-[#333] font-bold group-hover:text-[#555] transition">read-only</div>
-                 
                  <div className="leading-relaxed">
                     <span className="text-gray-600 mr-3 select-none">1</span><span className={COLORS.s_key}>const</span> <span className={COLORS.s_num}>Profile</span> = {'{'}<br/>
                     <span className="text-gray-600 mr-3 select-none">2</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"type"</span>: <span className={COLORS.s_str}>"{MOCK_RESULT.type}"</span>,<br/>
@@ -173,30 +169,24 @@ export default function App() {
                     <span className="text-gray-600 mr-3 select-none">8</span>{'}'};<span className="animate-pulse w-2 h-4 bg-blue-500/50 inline-block align-middle ml-1"></span>
                  </div>
               </div>
-
            </div>
 
-           {/* RIGHT PANEL: DIAGNOSTICS & LOGS */}
+           {/* RIGHT PANEL */}
            <div className="md:w-2/5 bg-[#0e0e10] flex flex-col">
-              
-              {/* Top: Stats */}
               <div className="p-8 border-b border-[#27272a]">
                  <div className="flex items-center gap-2 mb-6 text-xs font-bold uppercase tracking-widest text-gray-500">
                     <Activity size={14} /> Performance Metrics
                  </div>
-                 
                  <StatBar labelL="Atomic" labelR="Monolithic" score={MOCK_RESULT.stats.AM} color={TRAIT_CONFIG.AM.color} />
                  <StatBar labelL="Concise" labelR="Descriptive" score={MOCK_RESULT.stats.CD} color={TRAIT_CONFIG.CD.color} />
                  <StatBar labelL="Feature" labelR="Fixer" score={MOCK_RESULT.stats.FX} color={TRAIT_CONFIG.FX.color} />
                  <StatBar labelL="Day" labelR="Night" score={MOCK_RESULT.stats.DN} color={TRAIT_CONFIG.DN.color} />
               </div>
 
-              {/* Bottom: Logs (Collaboration) */}
               <div className="flex-1 p-8 bg-[#0c0c0e]">
                  <div className="flex items-center gap-2 mb-4 text-xs font-bold uppercase tracking-widest text-gray-500">
                     <GitMerge size={14} /> Merge Conflicts Log
                  </div>
-                 
                  <div className="space-y-3 font-mono text-[10px] md:text-xs">
                     {LOGS.map((log, i) => (
                        <div key={i} className="group flex gap-3 opacity-80 hover:opacity-100 transition">
@@ -210,20 +200,17 @@ export default function App() {
                                    target: {log.type}
                                 </span>
                              </div>
-                             <span className="text-gray-400">
-                                {`>> ${log.msg}`}
-                             </span>
+                             <span className="text-gray-400">{`>> ${log.msg}`}</span>
                           </div>
                        </div>
                     ))}
                     <div className="animate-pulse text-blue-500 mt-4">_</div>
                  </div>
               </div>
-
            </div>
         </div>
 
-        {/* Window Footer */}
+        {/* Footer */}
         <div className="px-5 py-2 bg-[#09090b] border-t border-[#27272a] flex justify-between items-center text-[10px] font-mono text-gray-600">
            <div className="flex gap-4">
               <span>CPU: 12%</span>
