@@ -4,7 +4,7 @@ import {
   Terminal, Activity, Share2, Hash, Code, Cpu 
 } from 'lucide-react';
 
-// --- Theme Config ---
+// --- Theme Config (V7 Palette - Deep Black) ---
 const COLORS = {
   bg: "bg-[#09090b]",       // Deepest Black/Zinc
   window: "bg-[#0c0c0e]",   // Slightly lighter window bg
@@ -73,6 +73,7 @@ const TrafficLights = () => (
   </div>
 );
 
+// --- UPDATED STAT BAR: SMOOTH & THICK ---
 const StatBar = ({ labelL, labelR, score, color }) => {
   const [width, setWidth] = useState(0);
   const isLeft = score >= 50;
@@ -81,23 +82,35 @@ const StatBar = ({ labelL, labelR, score, color }) => {
   useEffect(() => { setTimeout(() => setWidth(targetPct), 300); }, [targetPct]);
 
   return (
-    <div className="mb-5 font-mono text-[11px]">
-      <div className="flex justify-between mb-1.5 opacity-70">
-        <span className={isLeft ? 'text-white font-bold' : 'text-gray-600'}>{labelL}</span>
-        <span className={!isLeft ? 'text-white font-bold' : 'text-gray-600'}>{labelR}</span>
+    <div className="mb-6 font-mono text-[10px] md:text-xs w-full">
+      {/* 1. Labels Row (Terminal Style) */}
+      <div className="flex justify-between mb-1.5 opacity-80 font-bold tracking-tight">
+        <span className={isLeft ? 'text-white' : 'text-gray-600'}>{`<${labelL} />`}</span>
+        <span className={!isLeft ? 'text-white' : 'text-gray-600'}>{`<${labelR} />`}</span>
       </div>
-      <div className="h-2 bg-[#1a1a1a] border border-[#333] w-full flex relative rounded-sm overflow-hidden">
-        {/* Center Marker */}
+
+      {/* 2. The Smooth Track */}
+      {/* Changed: Removed grid lines, increased height to h-4 (thicker), kept border */}
+      <div className="h-4 bg-[#1a1a1a] border border-[#333] w-full flex relative overflow-hidden rounded-sm">
+        
+        {/* Center Line Marker (Kept for precision feel) */}
         <div className="absolute left-1/2 w-[1px] h-full bg-[#444] z-10"></div>
-        {/* The Bar */}
+
+        {/* The Colored Fill (Smooth, no blocks) */}
         <div 
-          className={`h-full transition-all duration-1000 ease-out ${color}`}
+          className={`h-full transition-all duration-1000 ease-out ${color} opacity-90`}
           style={{ 
             width: `${width}%`,
             marginLeft: isLeft ? 'auto' : '50%',
             marginRight: isLeft ? '50%' : 'auto',
           }}
         />
+      </div>
+
+      {/* 3. Numbers Row */}
+      <div className="flex justify-between mt-1 text-[10px] text-gray-500 font-mono">
+        <span className={isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{targetPct}%</span>
+        <span className={!isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{targetPct}%</span>
       </div>
     </div>
   );
