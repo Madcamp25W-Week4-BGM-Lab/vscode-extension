@@ -4,8 +4,10 @@ export interface SubTextConfig {
     context: string;
     style: {
         convention: "conventional" | "freeform" | "gitmoji";
-        useEmojis: boolean;
         language: string;
+        casing: "lower" | "sentence";
+        max_length: number;
+        ticket_prefix?: string; // Optional (e.g. "AUTH")
     }
     rules: string[];
     history: {
@@ -20,8 +22,11 @@ export const DEFAULT_CONFIG: SubTextConfig = {
     context: "",
     style: {
         convention: "conventional",
-        useEmojis: false,
-        language: "en"
+        language: "en",
+        // NEW DEFAULTS
+        casing: "lower",
+        max_length: 50
+        // ticket_prefix is undefined by default
     },
     rules: [],
     history: {
