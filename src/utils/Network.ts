@@ -1,7 +1,7 @@
 import { promises } from 'dns';
 import * as vscode from 'vscode';
 
-export const BACKEND_URL = 'http://127.0.0.1:8000';
+export const BACKEND_URL = 'http://172.10.5.176';
 
 export interface CommitPollResponse {
     task_id: string;
