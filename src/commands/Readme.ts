@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { pollForTask, BACKEND_URL, CommitPollResponse, ReadmePollResponse } from '../utils/Network';
+import { getProjectConfig } from '../utils/Config';
 
 type FactJson = {
 	repository: { name: string; type: string };
@@ -117,6 +118,14 @@ export async function startDraftMode() {
 		vscode.window.showErrorMessage(`SubText: Failed to build Fact JSON. ${err}`);
 		return;
 	}
+	const rootPath = workspaceFolders[0].uri.fsPath;
+	const config = await getProjectConfig(rootPath);
+	const repoType = config.repository?.type;
+	if (repoType !== 'research' && repoType !== 'library' && repoType !== 'service') {
+		vscode.window.showErrorMessage('SubText: repository.type must be one of research | library | service in .subtext.json.');
+		return;
+	}
+	fact.repository.type = repoType;
 	const payload = {
 		fact,
 		mode: 'draft',

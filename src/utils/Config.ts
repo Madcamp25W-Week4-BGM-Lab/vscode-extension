@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 export interface SubTextConfig {
     context: string;
+    repository?: { type?: "research" | "library" | "service" };
     style: {
         convention: "conventional" | "freeform" | "gitmoji";
         language: string;
@@ -20,6 +21,7 @@ export interface SubTextConfig {
 // Defaults
 export const DEFAULT_CONFIG: SubTextConfig = {
     context: "",
+    repository: { type: "service" },
     style: {
         convention: "conventional",
         language: "en",
@@ -54,6 +56,7 @@ export async function getProjectConfig(rootPath: string): Promise<SubTextConfig>
         // merge user config with defaults 
         return {
             context: userConfig.context || DEFAULT_CONFIG.context, 
+            repository: userConfig.repository ?? DEFAULT_CONFIG.repository,
             // merge
             style: { ...DEFAULT_CONFIG.style, ...userConfig.style },
             history: { ...DEFAULT_CONFIG.history, ...userConfig.history },
