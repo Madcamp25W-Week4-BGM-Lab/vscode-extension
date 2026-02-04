@@ -170,40 +170,67 @@ export async function analyzeContributorInRepo(token, repoString, contributor) {
   const octokit = new Octokit({ auth: token });
   const [owner, repo] = repoString.split('/');
 
-  // Analyze last 10 commits (Deep Fetch)
-  const commitsToAnalyze = contributor.commits.slice(0, 10);
+  // STEP 1: Fetch the user's FULL history in this repo (Metadata only)
+  // This solves your concern: We get up to 100 commits, not just the ones from the main scan.
+  let userCommits = [];
+  try {
+    const { data } = await octokit.request('GET /repos/{owner}/{repo}/commits', {
+      owner,
+      repo,
+      author: contributor.name, // Filter by this specific user
+      per_page: 100 // Get as much history as possible (Cost: 1 Call)
+    });
+    userCommits = data;
+  } catch (e) {
+    console.warn("Could not fetch specific user history, falling back to cached list.");
+    userCommits = contributor.commits;
+  }
+
+  // STEP 2: Calculate "Cheap" Stats (Using ALL 100 commits)
+  // We have Dates and Messages in the metadata, so use the full dataset for accuracy.
+  const allMessages = userCommits.map(c => c.commit.message);
+  const allDates = userCommits.map(c => c.commit.author.date);
+  
+  const scoreCD = calculateLength(allMessages); // High Accuracy (N=100)
+  const scoreDN = calculateCycle(allDates);     // High Accuracy (N=100)
+
+  // STEP 3: Deep Scan for "Expensive" Stats (Granularity & Waterfall Type)
+  // We strictly limit this to the top 10 to save API quota.
+  // Fetching diffs for 100 commits = 100 calls = Too slow/expensive.
+  const DEEP_LIMIT = 10;
+  const deepScanTarget = userCommits.slice(0, DEEP_LIMIT);
   
   const allStats = [];
-  const allDates = [];
-  const allMessages = [];
   const deepData = []; 
 
-  const details = await Promise.all(commitsToAnalyze.map(c => 
-    octokit.request('GET /repos/{owner}/{repo}/commits/{ref}', { owner, repo, ref: c.sha })
+  // Parallel Fetch Details (Cost: 10 Calls)
+  const details = await Promise.all(deepScanTarget.map(c => 
+    octokit.request('GET /repos/{owner}/{repo}/commits/{ref}', { 
+      owner, 
+      repo, 
+      ref: c.sha 
+    })
   ));
 
   details.forEach((d, index) => {
-    allStats.push(d.data.stats);
-    allDates.push(commitsToAnalyze[index].date);
-    allMessages.push(commitsToAnalyze[index].message);
+    allStats.push(d.data.stats); // Additions/Deletions
 
-    // Structure data for the Waterfall Classifier
     deepData.push({
-      message: commitsToAnalyze[index].message,
+      message: deepScanTarget[index].commit.message,
       files: d.data.files.map(f => ({
         filename: f.filename,
-        patch: f.patch,      // Raw Code Change
+        patch: f.patch, // Raw Code Diff
         additions: f.additions,
         deletions: f.deletions
       }))
     });
   });
 
+  // Calculate Deep Stats based on the sample
   const scoreAM = calculateGranularity(allStats);
-  const scoreCD = calculateLength(allMessages);
-  const scoreFX = calculateHybridType(deepData); // Uses Waterfall Logic
-  const scoreDN = calculateCycle(allDates);
+  const scoreFX = calculateHybridType(deepData); // Waterfall Logic
 
+  // Generate Type
   const type = [
     scoreAM >= 50 ? 'A' : 'M',
     scoreCD >= 50 ? 'C' : 'D',
@@ -213,8 +240,13 @@ export async function analyzeContributorInRepo(token, repoString, contributor) {
 
   return {
     type,
-    stats: { AM: Math.round(scoreAM), CD: Math.round(scoreCD), FX: Math.round(scoreFX), DN: Math.round(scoreDN) },
+    stats: { 
+      AM: Math.round(scoreAM), 
+      CD: Math.round(scoreCD), 
+      FX: Math.round(scoreFX), 
+      DN: Math.round(scoreDN) 
+    },
     username: contributor.name,
-    totalCommits: contributor.commits.length
+    totalCommits: userCommits.length // Display the TRUE count found (up to 100)
   };
 }
