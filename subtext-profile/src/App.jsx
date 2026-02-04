@@ -6,7 +6,7 @@ import AsciiPortrait from './AsciiPortrait';
 import DevTools from './DevTools';
 import { COLORS, PROFILES, TRAIT_CONFIG, LOGS } from './constants';
 
-// --- COMPONENT: GREYSCALE GIT GRAPH (Unchanged) ---
+// --- COMPONENT: GIT GRAPH BACKGROUND ---
 const GitGraphBackground = () => (
   <div className="fixed inset-0 z-0 pointer-events-none select-none overflow-hidden">
     <svg className="w-full h-full" viewBox="0 0 1440 1000" preserveAspectRatio="xMidYMid slice">
@@ -47,45 +47,59 @@ const TrafficLights = () => (
   </div>
 );
 
-// --- UPDATED STATBAR: Accepts Dynamic Color ---
-const StatBar = ({ labelL, labelR, score, color }) => {
+// --- UPDATED STATBAR: Directional Fill + Centered Headers ---
+const StatBar = ({ title, labelL, labelR, score, color }) => {
   const [width, setWidth] = useState(0);
-  const isLeft = score >= 50;
-  const relativePct = isLeft ? (score - 50) * 2 : (50 - score) * 2;
   
+  // Determine which side is dominant
+  const isLeftDominant = score >= 50;
+  const dominantPercentage = isLeftDominant ? score : 100 - score;
+
   useEffect(() => { 
-    const timer = setTimeout(() => setWidth(relativePct), 300); 
+    const timer = setTimeout(() => setWidth(dominantPercentage), 300); 
     return () => clearTimeout(timer);
-  }, [relativePct]);
+  }, [dominantPercentage]);
 
   return (
     <div className="w-full">
-      <div className="flex justify-between mb-2 opacity-90 font-bold tracking-tight uppercase text-xs">
-        <span className={isLeft ? 'text-white' : 'text-gray-600'}>{`<${labelL} />`}</span>
-        <span className={!isLeft ? 'text-white' : 'text-gray-600'}>{`<${labelR} />`}</span>
+      {/* CENTERED HEADER */}
+      <div className="text-xs uppercase text-zinc-300 font-bold tracking-[0.2em] mb-3 text-center">
+        {title}
       </div>
 
-      <div className="h-6 bg-[#1a1a1a] border border-[#333] w-full flex relative rounded-sm overflow-hidden">
-        <div className="absolute left-1/2 w-[1px] h-full bg-[#444] z-20"></div>
-        {/* Dynamic Color injected here */}
-        <div className="w-1/2 h-full flex justify-end relative">
-             <div className={`h-full transition-all duration-1000 ease-out ${color} opacity-90`} style={{ width: isLeft ? `${width}%` : '0%' }} />
-        </div>
-        <div className="w-1/2 h-full flex justify-start relative">
-             <div className={`h-full transition-all duration-1000 ease-out ${color} opacity-90`} style={{ width: !isLeft ? `${width}%` : '0%' }} />
-        </div>
+      {/* Labels */}
+      <div className="flex justify-between mb-2 font-bold tracking-tight uppercase text-xs">
+        <span className={isLeftDominant ? 'text-white' : 'text-zinc-600 transition-colors duration-500'}>{`<${labelL} />`}</span>
+        <span className={!isLeftDominant ? 'text-white' : 'text-zinc-600 transition-colors duration-500'}>{`<${labelR} />`}</span>
       </div>
 
-      <div className="flex justify-between mt-1 text-[11px] text-gray-500 font-mono">
-        {/* Percentage color matches bar color if you want, or keeps blue-400. 
-            Here I used the generic accent or specific logic if needed. 
-            Keeping blue-400 for text readability. */}
-        <span className={isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{relativePct}%</span>
-        <span className={!isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{relativePct}%</span>
+      {/* TRACK: Flexbox controls start direction */}
+      <div className={`h-3 bg-[#1a1a1a] border border-[#333] w-full relative rounded-full overflow-hidden flex ${isLeftDominant ? 'justify-start' : 'justify-end'}`}>
+         {/* Fill Bar */}
+         <div 
+           className={`h-full transition-all duration-1000 ease-out ${color} opacity-90 rounded-full`}
+           style={{ width: `${width}%` }} 
+         />
+      </div>
+
+      {/* Percentage Label - Aligns with the bar direction */}
+      <div className={`flex mt-1 text-[10px] text-blue-400 font-mono font-bold ${isLeftDominant ? 'justify-start' : 'justify-end'}`}>
+        <span>{dominantPercentage}% {isLeftDominant ? labelL : labelR}</span>
       </div>
     </div>
   );
 };
+
+// --- HELPER: JSDoc Line Renderer ---
+const JSDocLine = ({ text }) => (
+  <div className="flex">
+    <span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right"> </span>
+    <span className="text-gray-500">
+      <span className="mr-3 opacity-50">*</span>
+      {text}
+    </span>
+  </div>
+);
 
 // --- MAIN APP ---
 
@@ -138,22 +152,22 @@ export default function App() {
                </div>
             </div>
 
-            {/* STATS CARD - VIBRANT COLORS RESTORED */}
+            {/* STATS CARD */}
             <div className="w-full max-w-4xl mx-auto bg-[#121212] border border-[#27272a] p-8 lg:p-14 rounded-3xl shadow-2xl relative">
                <div className="absolute top-0 right-0 p-6 opacity-20 hidden md:block">
                   <Activity size={40} />
                </div>
-               <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-8 lg:mb-10 border-b border-[#333] pb-4">
-                  Core System Parameters
-               </h3>
                
-               <div className="flex flex-col gap-6 lg:gap-10">
-                  <StatBar key={data.type + "AM"} labelL="Atomic" labelR="Monolithic" score={data.stats.AM} color={TRAIT_CONFIG.AM.color} />
-                  <StatBar key={data.type + "CD"} labelL="Concise" labelR="Descriptive" score={data.stats.CD} color={TRAIT_CONFIG.CD.color} />
-                  <StatBar key={data.type + "FX"} labelL="Feature" labelR="Fixer" score={data.stats.FX} color={TRAIT_CONFIG.FX.color} />
-                  <StatBar key={data.type + "DN"} labelL="Day" labelR="Night" score={data.stats.DN} color={TRAIT_CONFIG.DN.color} />
+               {/* Note: I removed the "Core System Parameters" small header because the new centered titles serve that purpose better */}
+               
+               <div className="flex flex-col gap-10 lg:gap-14 pt-4">
+                  <StatBar title="Commit Granularity" key={data.type + "AM"} labelL="Atomic" labelR="Monolithic" score={data.stats.AM} color={TRAIT_CONFIG.AM.color} />
+                  <StatBar title="Communication Style" key={data.type + "CD"} labelL="Concise" labelR="Descriptive" score={data.stats.CD} color={TRAIT_CONFIG.CD.color} />
+                  <StatBar title="Problem Solving Approach" key={data.type + "FX"} labelL="Feature" labelR="Fixer" score={data.stats.FX} color={TRAIT_CONFIG.FX.color} />
+                  <StatBar title="Peak Activity Cycle" key={data.type + "DN"} labelL="Day" labelR="Night" score={data.stats.DN} color={TRAIT_CONFIG.DN.color} />
                </div>
             </div>
+
          </div>
 
          <div className="mt-12 lg:absolute lg:bottom-10 animate-bounce text-gray-600">
@@ -161,7 +175,7 @@ export default function App() {
          </div>
       </section>
 
-      {/* --- DETAILS SECTION --- */}
+      {/* --- DETAILS SECTION (Unchanged) --- */}
       <section className="relative z-10 py-24 px-6">
          <div className="max-w-6xl mx-auto grid lg:grid-cols-12 gap-12">
             
@@ -175,40 +189,40 @@ export default function App() {
                   <div className="px-5 py-3 border-b border-[#27272a] flex justify-between items-center bg-[#151517]">
                      <div className="flex items-center gap-4">
                         <TrafficLights />
-                        <span className="text-xs font-mono font-bold text-gray-500">profile.json</span>
+                        <span className="text-xs font-mono font-bold text-gray-500">profile.js</span>
                      </div>
                      <div className="text-[10px] uppercase font-bold text-gray-600">Read Only</div>
                   </div>
                   
                   <div className="p-8 font-mono text-sm leading-loose overflow-x-auto">
-                     <span className="text-gray-700 mr-4 select-none">1</span><span className={COLORS.s_key}>const</span> <span className={COLORS.s_num}>Profile</span> = {'{'}<br/>
-                     <span className="text-gray-700 mr-4 select-none">2</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"type"</span>: <span className={COLORS.s_str}>"{data.type}"</span>,<br/>
-                     <span className="text-gray-700 mr-4 select-none">3</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"alias"</span>: <span className={COLORS.s_str}>"{data.title}"</span>,<br/>
-                     <span className="text-gray-700 mr-4 select-none">4</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"traits"</span>: [<br/>
-                     <span className="text-gray-700 mr-4 select-none">5</span>&nbsp;&nbsp;&nbsp;&nbsp;<span className={COLORS.s_str}>"{data.type.includes('A') ? 'Atomic' : 'Monolithic'}"</span>, <span className={COLORS.s_str}>"{data.type.includes('N') ? 'NightOwl' : 'DayCoder'}"</span><br/>
-                     <span className="text-gray-700 mr-4 select-none">6</span>&nbsp;&nbsp;],<br/>
-                     <div className="flex items-start">
-                        <span className="text-gray-700 mr-4 select-none mt-1">7</span>
-                        <div>
-                           <span className={COLORS.s_key}>"desc"</span>: <span className={COLORS.s_str}>"{data.description}"</span>
-                        </div>
-                     </div>
-                     <span className="text-gray-700 mr-4 select-none">8</span>{'}'};<span className="animate-pulse w-2 h-4 bg-gray-500/50 inline-block align-middle ml-1"></span>
+                     <div className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right">1</span><span className="text-gray-500">/**</span></div>
+                     <div className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right">2</span><span className="text-gray-500"><span className="mr-3 opacity-50">*</span><span className="text-purple-400">@class</span> <span className="text-gray-300 font-bold">{data.title}</span></span></div>
+                     <div className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right">3</span><span className="text-gray-500"><span className="mr-3 opacity-50">*</span><span className="text-purple-400">@bio</span></span></div>
+                     {data.description.split('\n').map((line, i) => (
+                        line === "" ? <div key={i} className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right"> </span><span className="text-gray-500"><span className="mr-3 opacity-50">*</span></span></div> :
+                        <div key={i} className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right"> </span><span className="text-gray-500"><span className="mr-3 opacity-50">*</span>{line}</span></div>
+                     ))}
+                     <div className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right"> </span><span className="text-gray-500">*/</span></div>
+
+                     <div className="flex mt-2"><span className="text-gray-600 mr-4 select-none shrink-0 w-4 text-right">9</span><span><span className={COLORS.s_key}>export const</span> <span className={COLORS.s_num}>Profile</span> = {'{'}<br/></span></div>
+                     <div className="flex"><span className="text-gray-600 mr-4 select-none shrink-0 w-4 text-right">10</span><span className="pl-4"><span className={COLORS.s_key}>"type"</span>: <span className={COLORS.s_str}>"{data.type}"</span>,</span></div>
+                     <div className="flex"><span className="text-gray-600 mr-4 select-none shrink-0 w-4 text-right">11</span><span className="pl-4"><span className={COLORS.s_key}>"traits"</span>: [</span></div>
+                     <div className="flex"><span className="text-gray-600 mr-4 select-none shrink-0 w-4 text-right">12</span><span className="pl-8"><span className={COLORS.s_str}>"{data.type.includes('A') ? 'Atomic' : 'Monolithic'}"</span>, <span className={COLORS.s_str}>"{data.type.includes('N') ? 'NightOwl' : 'DayCoder'}"</span></span></div>
+                     <div className="flex"><span className="text-gray-600 mr-4 select-none shrink-0 w-4 text-right">13</span><span className="pl-4">]</span></div>
+                     <div className="flex"><span className="text-gray-600 mr-4 select-none shrink-0 w-4 text-right">14</span><span>{'}'};<span className="animate-pulse w-2 h-4 bg-blue-500/50 inline-block align-middle ml-1"></span></span></div>
                   </div>
                </div>
             </div>
 
-            {/* LOGS - VIBRANT COLORS RESTORED */}
+            {/* LOGS */}
             <div className="lg:col-span-5 flex flex-col justify-center">
                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
                   <GitMerge className="text-purple-500"/> Compatibility Log
                </h3>
-
                <div className="space-y-4">
                   {LOGS.map((log, i) => (
                      <div key={i} className="bg-[#121212] border border-[#27272a] p-5 rounded-xl hover:border-gray-600 transition group">
                         <div className="flex justify-between items-start mb-2">
-                           {/* Restored Bright/Neon Text Colors */}
                            <span className={`text-xs font-bold uppercase tracking-wider ${log.status === 'error' ? 'text-red-400' : log.status === 'warn' ? 'text-amber-400' : 'text-emerald-400'}`}>
                               {log.event}
                            </span>
@@ -225,7 +239,6 @@ export default function App() {
                   ))}
                </div>
             </div>
-
          </div>
       </section>
 
