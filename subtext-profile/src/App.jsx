@@ -39,9 +39,12 @@ const GitGraphBackground = () => (
 
 const TrafficLights = () => (
   <div className="flex gap-2">
-    <div className="w-3 h-3 rounded-full bg-[#333] border border-[#444]"></div>
-    <div className="w-3 h-3 rounded-full bg-[#333] border border-[#444]"></div>
-    <div className="w-3 h-3 rounded-full bg-[#333] border border-[#444]"></div>
+    {/* Red / Close */}
+    <div className="w-3 h-3 rounded-full bg-[#ff5f57] border border-[#e0443e]"></div>
+    {/* Yellow / Minimize */}
+    <div className="w-3 h-3 rounded-full bg-[#febc2e] border border-[#d89e24]"></div>
+    {/* Green / Maximize */}
+    <div className="w-3 h-3 rounded-full bg-[#28c840] border border-[#1aab29]"></div>
   </div>
 );
 
