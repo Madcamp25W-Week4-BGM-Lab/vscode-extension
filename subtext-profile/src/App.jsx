@@ -1,8 +1,7 @@
-// src/App.jsx
 import React, { useEffect, useState } from 'react';
 import { 
   GitCommit, GitPullRequest, GitMerge, AlertTriangle, 
-  Terminal, Activity, Share2, Hash, Code, Cpu, Zap 
+  Terminal, Activity, Share2, Hash, Code, Cpu, Zap, Settings 
 } from 'lucide-react';
 import AsciiPortrait from './AsciiPortrait';
 import DevTools from './DevTools';
@@ -29,38 +28,59 @@ const TrafficLights = () => (
   </div>
 );
 
+// --- UPDATED STAT BAR: CENTER-OUT SPLIT LAYOUT ---
 const StatBar = ({ labelL, labelR, score, color }) => {
   const [width, setWidth] = useState(0);
   const isLeft = score >= 50;
-  const targetPct = isLeft ? (score - 50) * 2 : (50 - score) * 2;
+  // Calculate percentage relative to the HALF side (0 to 100)
+  const relativePct = isLeft ? (score - 50) * 2 : (50 - score) * 2;
   
-  // FIX: Removed the setWidth(0) call that caused the error.
-  // Instead, we rely on the parent changing the 'key' prop to reset this component.
   useEffect(() => { 
-    const timer = setTimeout(() => setWidth(targetPct), 100); 
+    const timer = setTimeout(() => setWidth(relativePct), 100); 
     return () => clearTimeout(timer);
-  }, [targetPct]);
+  }, [relativePct]);
 
   return (
     <div className="mb-6 font-mono text-[10px] md:text-xs w-full">
+      {/* Labels */}
       <div className="flex justify-between mb-1.5 opacity-80 font-bold tracking-tight">
-        <span className={isLeft ? 'text-white' : 'text-gray-600'}>{`<${labelL} />`}</span>
-        <span className={!isLeft ? 'text-white' : 'text-gray-600'}>{`<${labelR} />`}</span>
+        <span className={isLeft ? 'text-white' : 'text-gray-500'}>{`<${labelL} />`}</span>
+        <span className={!isLeft ? 'text-white' : 'text-gray-500'}>{`<${labelR} />`}</span>
       </div>
-      <div className="h-4 bg-[#1a1a1a] border border-[#333] w-full flex relative overflow-hidden rounded-sm">
-        <div className="absolute left-1/2 w-[1px] h-full bg-[#444] z-10"></div>
-        <div 
-          className={`h-full transition-all duration-1000 ease-out ${color} opacity-90`}
-          style={{ 
-            width: `${width}%`,
-            marginLeft: isLeft ? 'auto' : '50%',
-            marginRight: isLeft ? '50%' : 'auto',
-          }}
-        />
+
+      {/* The Track (Split into 2 halves) */}
+      <div className="h-4 bg-[#1a1a1a] border border-[#333] w-full flex relative rounded-sm overflow-hidden">
+        
+        {/* Center Line */}
+        <div className="absolute left-1/2 w-[1px] h-full bg-[#444] z-20"></div>
+
+        {/* LEFT HALF TRACK */}
+        <div className="w-1/2 h-full flex justify-end relative">
+             {/* The Bar: Anchored to the right (center) */}
+             <div 
+               className={`h-full transition-all duration-1000 ease-out ${color} opacity-90`}
+               style={{ 
+                 width: isLeft ? `${width}%` : '0%', 
+               }}
+             />
+        </div>
+
+        {/* RIGHT HALF TRACK */}
+        <div className="w-1/2 h-full flex justify-start relative">
+             {/* The Bar: Anchored to the left (center) */}
+             <div 
+               className={`h-full transition-all duration-1000 ease-out ${color} opacity-90`}
+               style={{ 
+                 width: !isLeft ? `${width}%` : '0%', 
+               }}
+             />
+        </div>
       </div>
+
+      {/* Numbers */}
       <div className="flex justify-between mt-1 text-[10px] text-gray-500 font-mono">
-        <span className={isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{targetPct}%</span>
-        <span className={!isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{targetPct}%</span>
+        <span className={isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{relativePct}%</span>
+        <span className={!isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{relativePct}%</span>
       </div>
     </div>
   );
@@ -85,7 +105,7 @@ export default function App() {
 
       <div className={`relative z-10 w-full max-w-5xl ${COLORS.window} border ${COLORS.border} rounded-xl shadow-2xl overflow-hidden flex flex-col animate-fade-in`}>
         
-        {/* Header */}
+        {/* Window Header */}
         <div className="px-5 py-4 border-b border-[#27272a] flex justify-between items-center bg-[#0f0f11]">
           <div className="flex items-center gap-4">
              <TrafficLights />
@@ -101,7 +121,7 @@ export default function App() {
 
         <div className="flex flex-col md:flex-row">
            
-           {/* LEFT PANEL */}
+           {/* LEFT PANEL: IDENTITY */}
            <div className="md:w-3/5 p-8 border-r border-[#27272a]">
               
               <div className="mb-8 flex items-end justify-between">
@@ -123,26 +143,52 @@ export default function App() {
               <div className={`${COLORS.panel} border border-[#27272a] rounded-lg p-6 font-mono text-xs md:text-sm shadow-inner relative group`}>
                  <div className="absolute top-2 right-2 text-[10px] text-[#333] font-bold group-hover:text-[#555] transition">read-only</div>
                  <div className="leading-relaxed">
-                    <span className="text-gray-600 mr-3 select-none">1</span><span className={COLORS.s_key}>const</span> <span className={COLORS.s_num}>Profile</span> = {'{'}<br/>
-                    <span className="text-gray-600 mr-3 select-none">2</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"type"</span>: <span className={COLORS.s_str}>"{data.type}"</span>,<br/>
-                    <span className="text-gray-600 mr-3 select-none">3</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"alias"</span>: <span className={COLORS.s_str}>"{data.title}"</span>,<br/>
-                    <span className="text-gray-600 mr-3 select-none">4</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"traits"</span>: [<br/>
-                    <span className="text-gray-600 mr-3 select-none">5</span>&nbsp;&nbsp;&nbsp;&nbsp;<span className={COLORS.s_str}>"{data.type.includes('A') ? 'Atomic' : 'Monolithic'}"</span>, <span className={COLORS.s_str}>"{data.type.includes('N') ? 'NightOwl' : 'DayCoder'}"</span><br/>
-                    <span className="text-gray-600 mr-3 select-none">6</span>&nbsp;&nbsp;],<br/>
-                    <span className="text-gray-600 mr-3 select-none">7</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"desc"</span>: <span className={COLORS.s_str}>"{data.description}"</span><br/>
-                    <span className="text-gray-600 mr-3 select-none">8</span>{'}'};<span className="animate-pulse w-2 h-4 bg-blue-500/50 inline-block align-middle ml-1"></span>
+                    <div className="flex">
+                        <span className="text-gray-600 mr-3 w-4 shrink-0 text-right select-none">1</span>
+                        <span><span className={COLORS.s_key}>const</span> <span className={COLORS.s_num}>Profile</span> = {'{'}</span>
+                    </div>
+                    <div className="flex">
+                        <span className="text-gray-600 mr-3 w-4 shrink-0 text-right select-none">2</span>
+                        <span className="pl-4"><span className={COLORS.s_key}>"type"</span>: <span className={COLORS.s_str}>"{data.type}"</span>,</span>
+                    </div>
+                    <div className="flex">
+                        <span className="text-gray-600 mr-3 w-4 shrink-0 text-right select-none">3</span>
+                        <span className="pl-4"><span className={COLORS.s_key}>"alias"</span>: <span className={COLORS.s_str}>"{data.title}"</span>,</span>
+                    </div>
+                    <div className="flex">
+                        <span className="text-gray-600 mr-3 w-4 shrink-0 text-right select-none">4</span>
+                        <span className="pl-4"><span className={COLORS.s_key}>"traits"</span>: [</span>
+                    </div>
+                    <div className="flex">
+                        <span className="text-gray-600 mr-3 w-4 shrink-0 text-right select-none">5</span>
+                        <span className="pl-8"><span className={COLORS.s_str}>"{data.type.includes('A') ? 'Atomic' : 'Monolithic'}"</span>, <span className={COLORS.s_str}>"{data.type.includes('N') ? 'NightOwl' : 'DayCoder'}"</span></span>
+                    </div>
+                    <div className="flex">
+                        <span className="text-gray-600 mr-3 w-4 shrink-0 text-right select-none">6</span>
+                        <span className="pl-4">],</span>
+                    </div>
+                    {/* FIXED WRAPPING: Using Flex to align the key, and a block for the value to wrap correctly */}
+                    <div className="flex items-start">
+                        <span className="text-gray-600 mr-3 w-4 shrink-0 text-right select-none pt-0.5">7</span>
+                        <div className="pl-4">
+                           <span className={COLORS.s_key}>"desc"</span>: <span className={COLORS.s_str}>"{data.description}"</span>
+                        </div>
+                    </div>
+                    <div className="flex">
+                        <span className="text-gray-600 mr-3 w-4 shrink-0 text-right select-none">8</span>
+                        <span>{'}'};<span className="animate-pulse w-2 h-4 bg-blue-500/50 inline-block align-middle ml-1"></span></span>
+                    </div>
                  </div>
               </div>
            </div>
 
-           {/* RIGHT PANEL */}
+           {/* RIGHT PANEL: STATS */}
            <div className="md:w-2/5 bg-[#0e0e10] flex flex-col">
               <div className="p-8 border-b border-[#27272a]">
                  <div className="flex items-center gap-2 mb-6 text-xs font-bold uppercase tracking-widest text-gray-500">
                     <Activity size={14} /> Performance Metrics
                  </div>
-                 {/* FIX: We add a 'key' prop here. When 'data.type' changes, React destroys this StatBar and makes a new one. 
-                     This automatically resets the internal width state to 0, triggering the animation. */}
+                 {/* key prop ensures animation replays on type change */}
                  <StatBar key={data.type + "AM"} labelL="Atomic" labelR="Monolithic" score={data.stats.AM} color={TRAIT_CONFIG.AM.color} />
                  <StatBar key={data.type + "CD"} labelL="Concise" labelR="Descriptive" score={data.stats.CD} color={TRAIT_CONFIG.CD.color} />
                  <StatBar key={data.type + "FX"} labelL="Feature" labelR="Fixer" score={data.stats.FX} color={TRAIT_CONFIG.FX.color} />
@@ -153,18 +199,21 @@ export default function App() {
                  <div className="flex items-center gap-2 mb-4 text-xs font-bold uppercase tracking-widest text-gray-500">
                     <GitMerge size={14} /> Merge Conflicts Log
                  </div>
-                 <div className="space-y-3 font-mono text-[10px] md:text-xs">
+                 <div className="space-y-4 font-mono text-[10px] md:text-xs">
                     {LOGS.map((log, i) => (
-                       <div key={i} className="group flex gap-3 opacity-80 hover:opacity-100 transition">
-                          <span className="text-gray-600 shrink-0">{log.time}</span>
+                       <div key={i} className="group flex gap-3 opacity-80 hover:opacity-100 transition cursor-default">
+                          <span className="text-gray-600 shrink-0 select-none">{log.time}</span>
                           <div className="flex-1">
-                             <div className="flex items-center gap-2 mb-0.5">
+                             <div className="flex items-center gap-2 mb-1">
                                 <span className={`font-bold ${log.status === 'error' ? COLORS.error : log.status === 'warn' ? COLORS.warn : COLORS.success}`}>
                                    {log.event}
                                 </span>
-                                <span className="text-gray-600 text-[9px] border border-[#333] px-1 rounded">target: {log.type}</span>
+                                {/* IMPROVED CONTRAST for the target badge */}
+                                <span className="text-gray-400 font-bold bg-[#1e1e1e] border border-[#333] px-1.5 rounded-[2px]">
+                                   target: {log.type}
+                                </span>
                              </div>
-                             <span className="text-gray-400">{`>> ${log.msg}`}</span>
+                             <span className="text-gray-400 block leading-tight">{`>> ${log.msg}`}</span>
                           </div>
                        </div>
                     ))}
