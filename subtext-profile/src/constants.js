@@ -5,15 +5,10 @@ export const COLORS = {
   window: "bg-[#0c0c0e]",
   panel: "bg-[#121212]",
   border: "border-[#27272a]",
-  text: "text-[#a1a1aa]",
-  accent: "text-blue-500",
-  success: "text-emerald-500",
-  warn: "text-amber-500",
-  error: "text-red-500",
-  s_key: "text-[#7dd3fc]",
-  s_str: "text-[#fda4af]",
-  s_num: "text-[#d8b4fe]",
-  s_bool: "text-[#fcd34d]",
+  text: "text-gray-400",
+  s_key: "text-[#7dd3fc]",  // Restored Blue for keys
+  s_str: "text-[#fda4af]",  // Restored Pink for strings
+  s_num: "text-[#d8b4fe]",  // Restored Purple for numbers
 };
 
 export const PROFILES = {
@@ -47,6 +42,7 @@ export const PROFILES = {
   }
 };
 
+// RESTORED VIBRANT COLORS
 export const TRAIT_CONFIG = {
   AM: { left: 'Atomic', right: 'Monolithic', color: 'bg-emerald-500' },
   CD: { left: 'Concise', right: 'Descriptive', color: 'bg-blue-500' },
