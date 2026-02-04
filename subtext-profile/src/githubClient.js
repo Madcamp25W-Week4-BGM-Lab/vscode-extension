@@ -3,9 +3,9 @@ import { Octokit } from "octokit";
 // --- 1. CONFIGURATION ---
 export const ALGO_CONFIG = {
   // Shared Thresholds
-  GRANULARITY: { ATOMIC_MAX: 20, MONOLITHIC_MIN: 200 },
-  LENGTH: { CONCISE_MAX: 20, DESCRIPTIVE_MIN: 120 },
-  CYCLE: { NIGHT_START: 20, NIGHT_END: 6 },
+  GRANULARITY: { ATOMIC_MAX: 20, MONOLITHIC_MIN: 250 },
+  LENGTH: { CONCISE_MAX: 5, DESCRIPTIVE_MIN: 75 },
+  CYCLE: { NIGHT_START: 18, NIGHT_END: 6 },
 
   // STRATEGY 1: MESSAGE (Highest Priority)
   NLP: {
@@ -197,7 +197,7 @@ export async function analyzeContributorInRepo(token, repoString, contributor) {
   // STEP 3: Deep Scan for "Expensive" Stats (Granularity & Waterfall Type)
   // We strictly limit this to the top 10 to save API quota.
   // Fetching diffs for 100 commits = 100 calls = Too slow/expensive.
-  const DEEP_LIMIT = 10;
+  const DEEP_LIMIT = 15;
   const deepScanTarget = userCommits.slice(0, DEEP_LIMIT);
   
   const allStats = [];
