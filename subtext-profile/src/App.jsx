@@ -138,14 +138,17 @@ export default function App() {
     setLoading(true);
     try {
       const result = await analyzeContributorInRepo(token, repoQuery, contributor);
-      
-      let baseProfile = PROFILES.NINJA;
-      if (result.type.includes('M') && result.type.includes('X')) baseProfile = PROFILES.MECH;
-      else if (result.type.includes('M') && result.type.includes('F')) baseProfile = PROFILES.WIZARD;
-      else if (result.type.includes('A') && result.type.includes('X')) baseProfile = PROFILES.DRONE;
+
+      // 1. Try to find an exact match for the 4-letter type
+      let matchedProfile = PROFILES[result.type];
+
+      // 2. Fallback: If for some reason the type doesn't match (unlikely), default to Ninja
+      if (!matchedProfile) {
+        matchedProfile = PROFILES.ACFN; // Default
+      }
 
       setData({
-        ...baseProfile,
+        ...matchedProfile,
         type: result.type,
         title: `${contributor.name}_${result.type}`,
         stats: result.stats
