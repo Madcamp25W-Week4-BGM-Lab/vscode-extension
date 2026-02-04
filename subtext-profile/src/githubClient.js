@@ -1,107 +1,220 @@
 import { Octokit } from "octokit";
 
-export async function analyzeProfile(token, username) {
-  // Initialize the client with the user's token
-  const octokit = new Octokit({ auth: token });
+// --- 1. CONFIGURATION ---
+export const ALGO_CONFIG = {
+  // Shared Thresholds
+  GRANULARITY: { ATOMIC_MAX: 20, MONOLITHIC_MIN: 200 },
+  LENGTH: { CONCISE_MAX: 20, DESCRIPTIVE_MIN: 120 },
+  CYCLE: { NIGHT_START: 20, NIGHT_END: 6 },
 
-  // 1. THE GRAPHQL QUERY
-  // This fetches the user's ID, their top 6 repos, and the last 20 commits of each.
-  const query = `
-    query($login: String!) {
-      user(login: $login) {
-        id
-        login
-        repositories(first: 6, ownerAffiliations: OWNER, orderBy: {field: PUSHED_AT, direction: DESC}, isFork: false) {
-          nodes {
-            name
-            defaultBranchRef {
-              target {
-                ... on Commit {
-                  history(first: 20, author: {id: $userId}) { 
-                    nodes {
-                      message
-                      committedDate
-                      additions
-                      deletions
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
+  // STRATEGY 1: MESSAGE (Highest Priority)
+  NLP: {
+    // strict regex to catch explicit intent
+    FEATURE: /^(feat|new|add|create|implement|init|build|make)(:|\s)/i, 
+    FIX: /^(fix|bug|resolve|patch|repair|correct|hotfix|oops|refactor)(:|\s)/i,
+  },
 
-  try {
-    // A. Get User ID first (Required to filter history by ONLY this user)
-    const { user: { id: userId } } = await octokit.graphql(
-      `query($login: String!) { user(login: $login) { id } }`, 
-      { login: username }
-    );
+  // STRATEGY 2: DIFF CONTENT (Middle Priority)
+  DIFF: {
+    // Structural keywords = Creation = Feature
+    STRUCTURAL: /class |function |const |let |var |import |export |interface |type |new |component/i,
+    // Logic/Control keywords = Correction = Fix
+    LOGIC: /if\(|if |else|return|try |catch|throw |typeof |!=|==|&&|\|\|/i,
+  },
 
-    // B. Run the Mega Query
-    // Note: We inject the userId into the query string to filter commits
-    const data = await octokit.graphql(query.replace('$userId', `"${userId}"`), {
-      login: username
-    });
-
-    // C. Flatten Data
-    const allCommits = data.user.repositories.nodes
-      .map(repo => repo.defaultBranchRef?.target?.history?.nodes || [])
-      .flat();
-
-    if (allCommits.length === 0) throw new Error("NO_COMMITS_FOUND");
-
-    // --- CALCULATE STATS ---
-
-    // 1. GRANULARITY (Atomic vs Monolithic)
-    // Avg lines changed (additions + deletions)
-    const totalLines = allCommits.reduce((acc, c) => acc + c.additions + c.deletions, 0);
-    const avgDiff = totalLines / allCommits.length;
-    // Score: < 20 lines = 100 (Atomic). > 300 lines = 0 (Monolithic).
-    const scoreAM = Math.max(0, Math.min(100, 100 - ((avgDiff - 20) * (100 / 280))));
-
-    // 2. LENGTH (Concise vs Descriptive)
-    // Avg message length
-    const avgLen = allCommits.reduce((acc, c) => acc + c.message.length, 0) / allCommits.length;
-    // Score: < 20 chars = 100 (Concise). > 120 chars = 0 (Descriptive).
-    const scoreCD = Math.max(0, Math.min(100, 100 - ((avgLen - 20) * (100 / 100))));
-
-    // 3. TYPE (Feature vs Fixer)
-    // Keyword analysis
-    const featKeys = /feat|add|new|create|implement|init/i;
-    const feats = allCommits.filter(c => featKeys.test(c.message)).length;
-    const fixes = allCommits.filter(c => /fix|bug|resolve|patch|repair/i.test(c.message)).length;
-    const totalClassified = feats + fixes || 1;
-    const scoreFX = Math.floor((feats / totalClassified) * 100);
-
-    // 4. CYCLE (Day vs Night)
-    // Time analysis (Using local hours from Date object is rough but works for vibe)
-    const nightCommits = allCommits.filter(c => {
-      const h = new Date(c.committedDate).getHours();
-      return h < 6 || h >= 20; // 8PM - 6AM
-    }).length;
-    const scoreDN = Math.floor((nightCommits / allCommits.length) * 100);
-
-    // D. Generate Code (e.g., "ACFN")
-    const type = [
-      scoreAM >= 50 ? 'A' : 'M',
-      scoreCD >= 50 ? 'C' : 'D',
-      scoreFX >= 50 ? 'F' : 'X',
-      scoreDN >= 50 ? 'N' : 'D'
-    ].join('');
-
-    return {
-      type,
-      stats: { AM: Math.round(scoreAM), CD: Math.round(scoreCD), FX: Math.round(scoreFX), DN: Math.round(scoreDN) },
-      username: username,
-      totalCommits: allCommits.length
-    };
-
-  } catch (err) {
-    console.error("Analysis Error:", err);
-    throw err;
+  // STRATEGY 3: FILE EXTENSION (Fallback)
+  FILES: {
+    CODE: ['.jsx', '.js', '.tsx', '.ts', '.py', '.rb', '.go', '.rs', '.java', '.cpp', '.c', '.vue'], 
+    MAINTENANCE: ['.json', '.yml', '.yaml', '.toml', '.xml', '.config.js', '.gitignore', '.test.js', '.spec.js'] 
   }
+};
+
+// --- 2. CALCULATORS ---
+
+// ... [calculateGranularity, calculateLength, calculateCycle unchanged] ...
+function calculateGranularity(statsArray) { 
+  if (!statsArray.length) return 50;
+  const totalLines = statsArray.reduce((acc, s) => acc + s.additions + s.deletions, 0);
+  const avgDiff = totalLines / statsArray.length;
+  const { ATOMIC_MAX, MONOLITHIC_MIN } = ALGO_CONFIG.GRANULARITY;
+  const score = 100 - ((avgDiff - ATOMIC_MAX) * (100 / (MONOLITHIC_MIN - ATOMIC_MAX)));
+  return Math.max(0, Math.min(100, score));
+}
+
+function calculateLength(messages) {
+  if (!messages.length) return 50;
+  const avgLen = messages.reduce((acc, msg) => acc + msg.length, 0) / messages.length;
+  const { CONCISE_MAX, DESCRIPTIVE_MIN } = ALGO_CONFIG.LENGTH;
+  const score = 100 - ((avgLen - CONCISE_MAX) * (100 / (DESCRIPTIVE_MIN - CONCISE_MAX)));
+  return Math.max(0, Math.min(100, score));
+}
+
+function calculateCycle(dates) {
+  if (!dates.length) return 50;
+  const { NIGHT_START, NIGHT_END } = ALGO_CONFIG.CYCLE;
+  const nightCount = dates.filter(d => {
+    const h = new Date(d).getHours();
+    return ALGO_CONFIG.CYCLE.NIGHT_START > ALGO_CONFIG.CYCLE.NIGHT_END 
+      ? (h >= NIGHT_START || h < NIGHT_END)
+      : (h >= NIGHT_START && h < NIGHT_END);
+  }).length;
+  return Math.floor((nightCount / dates.length) * 100);
+}
+
+/**
+ * THE WATERFALL CLASSIFIER
+ * Priority: Message > Diff > File Extension
+ */
+function classifyCommit(commit) {
+  // commit = { message, files: [{ filename, patch, additions, deletions }] }
+  
+  // 1. PRIORITY 1: MESSAGE (Explicit Intent)
+  // If the user explicitly labelled it, trust them.
+  if (ALGO_CONFIG.NLP.FEATURE.test(commit.message)) return 1; // Feature
+  if (ALGO_CONFIG.NLP.FIX.test(commit.message)) return -1;    // Fix
+
+  // 2. PRIORITY 2: DIFF CONTENT (The "Shape" of the code)
+  // If the message is vague ("wip", "update"), look at the code.
+  let diffScore = 0;
+  let hasCode = false;
+
+  if (commit.files && commit.files.length > 0) {
+    commit.files.forEach(f => {
+      // Skip binary/large files without patches
+      if (!f.patch) return; 
+
+      const lines = f.patch.split('\n');
+      const added = lines.filter(l => l.startsWith('+') && !l.startsWith('+++'));
+      const deleted = lines.filter(l => l.startsWith('-') && !l.startsWith('---'));
+
+      // Heuristic A: Pure Creation vs Pure Deletion
+      if (added.length > 10 && deleted.length === 0) diffScore += 2; // Strong Feature
+      else if (deleted.length > added.length) diffScore -= 1;        // Refactor/Fix
+
+      // Heuristic B: Content Scanning
+      added.forEach(line => {
+        const code = line.substring(1).trim();
+        if (ALGO_CONFIG.DIFF.STRUCTURAL.test(code)) diffScore += 1; // Defining things
+        if (ALGO_CONFIG.DIFF.LOGIC.test(code)) diffScore -= 1;      // Fixing logic
+      });
+
+      hasCode = true;
+    });
+  }
+
+  // Use Diff Score if it's decisive enough
+  if (hasCode) {
+    if (diffScore >= 2) return 1;  // Likely Feature
+    if (diffScore <= -2) return -1; // Likely Fix
+  }
+
+  // 3. PRIORITY 3: FILE EXTENSION (Fallback)
+  // If diff was ambiguous (score -1 to 1), fall back to file type.
+  let fileScore = 0;
+  if (commit.files) {
+    commit.files.forEach(f => {
+      const ext = '.' + f.filename.split('.').pop();
+      if (ALGO_CONFIG.FILES.CODE.includes(ext)) fileScore += 1;
+      if (ALGO_CONFIG.FILES.MAINTENANCE.includes(ext)) fileScore -= 1;
+    });
+  }
+
+  if (fileScore > 0) return 1;  // Touched code -> Assume Feature
+  if (fileScore < 0) return -1; // Touched config -> Assume Fix/Maint
+  
+  return 0; // Truly Unknown
+}
+
+function calculateHybridType(commitsData) {
+  if (!commitsData.length) return 50;
+
+  let featureVotes = 0;
+  let classifiedCount = 0;
+
+  commitsData.forEach(c => {
+    const vote = classifyCommit(c);
+    if (vote !== 0) {
+      classifiedCount++;
+      if (vote === 1) featureVotes++;
+    }
+  });
+
+  if (classifiedCount === 0) return 50;
+  return Math.floor((featureVotes / classifiedCount) * 100);
+}
+
+
+// --- 3. EXPORTED FUNCTIONS ---
+
+// 1. Fetch Contributors (Metadata Scan)
+export async function fetchRepoContributors(token, repoString) {
+  const octokit = new Octokit({ auth: token });
+  const [owner, repo] = repoString.split('/');
+
+  const { data: commits } = await octokit.request('GET /repos/{owner}/{repo}/commits', {
+    owner, repo, per_page: 100
+  });
+
+  const contributors = {};
+  commits.forEach(c => {
+    const name = c.author ? c.author.login : c.commit.author.name;
+    if (!contributors[name]) contributors[name] = { name, avatar: c.author?.avatar_url, commits: [] };
+    contributors[name].commits.push({ sha: c.sha, message: c.commit.message, date: c.commit.author.date });
+  });
+
+  return Object.values(contributors).sort((a,b) => b.commits.length - a.commits.length);
+}
+
+// 2. Analyze Specific Contributor (Deep Scan)
+export async function analyzeContributorInRepo(token, repoString, contributor) {
+  const octokit = new Octokit({ auth: token });
+  const [owner, repo] = repoString.split('/');
+
+  // Analyze last 10 commits (Deep Fetch)
+  const commitsToAnalyze = contributor.commits.slice(0, 10);
+  
+  const allStats = [];
+  const allDates = [];
+  const allMessages = [];
+  const deepData = []; 
+
+  const details = await Promise.all(commitsToAnalyze.map(c => 
+    octokit.request('GET /repos/{owner}/{repo}/commits/{ref}', { owner, repo, ref: c.sha })
+  ));
+
+  details.forEach((d, index) => {
+    allStats.push(d.data.stats);
+    allDates.push(commitsToAnalyze[index].date);
+    allMessages.push(commitsToAnalyze[index].message);
+
+    // Structure data for the Waterfall Classifier
+    deepData.push({
+      message: commitsToAnalyze[index].message,
+      files: d.data.files.map(f => ({
+        filename: f.filename,
+        patch: f.patch,      // Raw Code Change
+        additions: f.additions,
+        deletions: f.deletions
+      }))
+    });
+  });
+
+  const scoreAM = calculateGranularity(allStats);
+  const scoreCD = calculateLength(allMessages);
+  const scoreFX = calculateHybridType(deepData); // Uses Waterfall Logic
+  const scoreDN = calculateCycle(allDates);
+
+  const type = [
+    scoreAM >= 50 ? 'A' : 'M',
+    scoreCD >= 50 ? 'C' : 'D',
+    scoreFX >= 50 ? 'F' : 'X',
+    scoreDN >= 50 ? 'N' : 'D'
+  ].join('');
+
+  return {
+    type,
+    stats: { AM: Math.round(scoreAM), CD: Math.round(scoreCD), FX: Math.round(scoreFX), DN: Math.round(scoreDN) },
+    username: contributor.name,
+    totalCommits: contributor.commits.length
+  };
 }
