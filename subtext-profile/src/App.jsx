@@ -109,7 +109,7 @@ export default function App() {
       const { user, token } = await signInWithGitHub();
       setToken(token);
       localStorage.setItem('gh_token', token); 
-    } catch (e) {
+    } catch (_e) {
       alert("Login failed");
     }
   };
