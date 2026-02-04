@@ -10,9 +10,19 @@ export interface CommitPollResponse {
     error?: string;
 }
 
-// pollForCompletion: checks every 1 second to check if task is done
-//      Used in Commit and Readme Commands
-export async function pollForCommit(taskId: string): Promise<string> {
+export interface ReadmePollResponse {
+    task_id: string;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    content?: string;
+    error?: string;
+}
+
+// pollForTask: generic polling function
+// T is the expected response type (CommitPollResponse or ReadmePollResponse)
+export async function pollForTask<T extends { status: string, error?: string }>(
+    statusUrl: string, 
+    loadingMessage: string
+): Promise<T> {
     const POLL_INTERVAL_MS = 1000;
     const MAX_RETRIES = 60; // 60 seconds timeout
 
@@ -23,27 +33,33 @@ export async function pollForCommit(taskId: string): Promise<string> {
             attempts++;
 
             // UI Feedback during waiting
-            vscode.window.setStatusBarMessage(`$(sync~spin) SubText: Thinking... (${attempts}s)`);
+            vscode.window.setStatusBarMessage(`$(sync~spin) SubText: ${loadingMessage} (${attempts}s)`);
 
             try {
-                const res = await fetch(`${BACKEND_URL}/api/v1/tasks/${taskId}`);
-                if (!res.ok) {throw new Error("Failed to check status"); }
+                const res = await fetch(statusUrl);
+                if (!res.ok) {
+                    if (res.status !== 404) {
+                        throw new Error(`Server Error: ${res.status}`);
+                    }
+                }
 
-                const task = await res.json() as CommitPollResponse;
+                if (res.ok) {
+                    const task = await res.json() as T;
 
-                if (task.status === 'completed' && task.commit_message) {
-                    clearInterval(interval);
-                    resolve(task.commit_message);
-                } 
-                else if (task.status === 'failed') {
-                    clearInterval(interval);
-                    reject(new Error("AI Task Failed on Server"));
+                    if (task.status === 'completed') {
+                        clearInterval(interval);
+                        resolve(task);
+                    } 
+                    else if (task.status === 'failed') {
+                        clearInterval(interval);
+                        reject(new Error(task.error || "AI Task Failed on Server"));
+                }
                 }
                 
                 // Timeout Check
                 if (attempts >= MAX_RETRIES) {
                     clearInterval(interval);
-                    reject(new Error("Request Timed Out (GPU took too long)"));
+                    reject(new Error("Request Timed Out (Worker took too long)"));
                 }
             } catch (err) {
                 clearInterval(interval);
