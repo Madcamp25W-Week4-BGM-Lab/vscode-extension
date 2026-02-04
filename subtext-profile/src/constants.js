@@ -1,5 +1,3 @@
-// src/constants.js
-
 export const COLORS = {
   bg: "bg-[#09090b]",
   window: "bg-[#0c0c0e]",
