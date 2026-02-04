@@ -1,127 +1,121 @@
 import React from 'react';
 
-// 1. DEFINE THE TEMPLATES (With {{PLACEHOLDERS}})
-const TEMPLATES = {
-  // NINJA (Atomic + Feature)
+// HIGH-FIDELITY ASCII COLLECTION
+const ARTWORK = {
+  // NINJA: The "Ghost in the Shell" Hacker
   NINJA: `
-      .-------.
-    /   .   .   \\
-   /   /  _  \\   \\
-  |   | {{EYES}}  |   |
-  |    \\ {{MOUTH}} /    |
-   \\    '---'    /
-    '-----------'
-      /|  |  |\\
-     / |  |  | \\
+      .           .
+    /' \\         / \`\\
+   /   | .---.  |   \\
+  |    |/  _  \\ |    |
+  |    |\\   _  /|    |
+   \\  /  \\___/  \\  /
+    \\/           \\/
+    |             |
+    |    - - -    |
+    \\    _   _    /
+     \\__(")_(" )_/
+     /   \\   /   \\
     `,
 
-  // MECH (Monolithic + Fixer)
+  // MECH: The "Heavy Walker" Unit
   MECH: `
-    [=]-------[=]
-    |  [-----]  |
-    |  |{{EYES}}|  |
-    |  [-----]  |
-    |  |{{MOUTH}}|  |
-    |___|___|___|
-    /   |   |   \\
-   [____|___|____]
+      [=]-------[=]
+       |  [###]  |
+      /|   _|_   |\\
+     | |  | o |  | |
+     | |__|___|__| |
+     |  |  |  |  | |
+    /   |  |  |  |  \\
+   /____|__|__|__|___\\
+  |    |       |    |
+  [====]       [====]
     `,
 
-  // WIZARD (Monolithic + Feature)
+  // WIZARD: The "Unix Greybeard"
   WIZARD: `
-      /\\
-     /  \\
-    |    |
-   ( {{EYES}} )
-   | {{MOUTH}}  |
-   | {||} |
-   /  ::  \\
-  /___::___\\
+          ____
+        /'    \`\\
+       (        )
+       |  ^  ^  |
+       | ((  )) |
+       |   <    |
+       |  ====  |
+      / \\  --  / \\
+     /   \\____/   \\
+    /     |  |     \\
+  _/      |  |      \\_
     `,
 
-  // OPERATOR (Atomic + Fixer)
+  // DRONE: The "Surveillance Swarm"
   OPERATOR: `
-      _HT_
-     |{{EYES}}|
-    _|[__]|_
-   / |{{MOUTH}}| \\
-  |  | -- |  |
-  |__|____|__|
-     /    \\
+      /===\\   /===\\
+      \\   /   \\   /
+       \\ /     \\ /
+       _|_______|_
+      |  O   O  |
+      |__  V  __|
+       /|     |\\
+      / \\     / \\
+     /   \\___/   \\
+    /_____\\ /_____\\
+     (   )   (   )
     `
 };
 
-// 2. DEFINE THE PARTS
-const PARTS = {
-  EYES: {
-    DAY:   { NINJA: "(O O)", MECH: "[0 0]", WIZARD: " O O ", OPERATOR: "O  O" },
-    NIGHT: { NINJA: "(- -)", MECH: "[- -]", WIZARD: " - - ", OPERATOR: "-  -" }
-  },
-  MOUTH: {
-    CONCISE:     { NINJA: " _ ", MECH: "__|__", WIZARD: "  -   ", OPERATOR: " .. " },
-    DESCRIPTIVE: { NINJA: "[ ]", MECH: "[___]", WIZARD: " (o)  ", OPERATOR: " [] " }
-  }
-};
-
 const AsciiPortrait = ({ type }) => {
-  // --- A. Determine the Body Class (Base Archtype) ---
-  let bodyKey = "NINJA"; // Default
+  // 1. Determine Archetype
+  let bodyKey = "NINJA"; 
   let label = "UNKNOWN";
   let colorClass = "text-gray-400";
 
-  // Logic: Atomic/Monolithic (A/M) + Feature/Fixer (F/X)
   if (type.includes('A') && type.includes('F')) {
     bodyKey = "NINJA";
     label = "STRIDER";
-    colorClass = "text-emerald-400"; 
+    colorClass = "text-emerald-500"; 
   } else if (type.includes('M') && type.includes('X')) {
     bodyKey = "MECH";
     label = "HEAVY";
-    colorClass = "text-rose-400"; 
+    colorClass = "text-rose-500"; 
   } else if (type.includes('M') && type.includes('F')) {
     bodyKey = "WIZARD";
     label = "ARCHITECT";
-    colorClass = "text-amber-400"; 
+    colorClass = "text-amber-500"; 
   } else if (type.includes('A') && type.includes('X')) {
     bodyKey = "OPERATOR";
     label = "DRONE";
-    colorClass = "text-blue-400"; 
+    colorClass = "text-blue-500"; 
   }
 
-  // --- B. Determine Traits for Parts ---
+  // 2. Select Traits
   const isNight = type.includes('N');
-  const isDescriptive = type.includes('D'); // Assuming 'D' in 'CD' axis stands for Descriptive
+  const isDescriptive = type.includes('D');
 
-  // --- C. Select the specific parts for this body ---
-  const eyesStr = isNight ? PARTS.EYES.NIGHT[bodyKey] : PARTS.EYES.DAY[bodyKey];
-  const mouthStr = isDescriptive ? PARTS.MOUTH.DESCRIPTIVE[bodyKey] : PARTS.MOUTH.CONCISE[bodyKey];
-
-  // --- D. Compile the final string ---
-  let finalArt = TEMPLATES[bodyKey]
-    .replace('{{EYES}}', eyesStr)
-    .replace('{{MOUTH}}', mouthStr);
+  // 3. Get Artwork
+  const finalArt = ARTWORK[bodyKey];
 
   return (
-    <div className={`flex flex-col items-center justify-center p-6 border border-[#27272a] bg-[#121212] rounded-xl relative overflow-hidden group`}>
+    <div className={`flex flex-col items-center justify-center p-8 border border-[#27272a] bg-[#121212] rounded-xl relative overflow-hidden group w-72 h-80 shadow-2xl`}>
       
       {/* Dynamic Background Glow */}
-      <div className={`absolute inset-0 opacity-10 blur-2xl ${colorClass.replace('text-', 'bg-')}`}></div>
+      <div className={`absolute inset-0 opacity-5 blur-3xl ${colorClass.replace('text-', 'bg-')}`}></div>
 
       {/* The Rendered ASCII */}
-      <pre className={`font-mono text-[10px] sm:text-xs leading-[1.1] whitespace-pre select-none relative z-10 ${colorClass} transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_8px_currentColor]`}>
+      {/* Increased font size slightly and line-height for readability */}
+      <pre className={`font-mono text-[11px] leading-[1.2] whitespace-pre select-none relative z-10 ${colorClass} transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_10px_currentColor]`}>
         {finalArt}
       </pre>
 
       {/* The Label */}
-      <div className="mt-4 flex gap-2 text-[10px] font-mono tracking-widest uppercase text-gray-600">
+      <div className="absolute bottom-6 flex gap-3 text-[10px] font-mono tracking-widest uppercase text-zinc-600">
          <span>{label}</span>
-         <span className="text-gray-700">|</span>
+         <span className="text-zinc-700">|</span>
          <span className={isNight ? "text-purple-400" : "text-orange-400"}>{isNight ? "NIGHT" : "DAY"}</span>
-         <span className="text-gray-700">|</span>
+         <span className="text-zinc-700">|</span>
          <span className={isDescriptive ? "text-indigo-400" : "text-teal-400"}>{isDescriptive ? "DESC" : "CONC"}</span>
       </div>
 
-      {/* Scanline Effect */}
+      {/* CRT Scanline Effect (Subtle) */}
       <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]"></div>
     </div>
   );
