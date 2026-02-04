@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  GitMerge, Terminal, Activity, Share2, Code, ChevronDown 
+  GitMerge, Terminal, Activity, Share2, Code, ChevronDown, Globe 
 } from 'lucide-react';
 import AsciiPortrait from './AsciiPortrait';
 import DevTools from './DevTools';
-import { COLORS, PROFILES, TRAIT_CONFIG, LOGS } from './constants';
+import { COLORS, PROFILES, TRAIT_CONFIG, LOGS, UI_TEXT } from './constants';
 
-// --- COMPONENT: GIT GRAPH BACKGROUND ---
+// --- GIT GRAPH BACKGROUND (Unchanged) ---
 const GitGraphBackground = () => (
   <div className="fixed inset-0 z-0 pointer-events-none select-none overflow-hidden">
     <svg className="w-full h-full" viewBox="0 0 1440 1000" preserveAspectRatio="xMidYMid slice">
@@ -19,8 +19,6 @@ const GitGraphBackground = () => (
       <path d="M160 1200 V-200" stroke="#333" strokeWidth="3" fill="none" />
       <path d="M60 1200 L60 700 C60 500 160 500 160 300" stroke="#52525b" strokeWidth="2" strokeDasharray="10 10" fill="none" opacity="0.4" />
       <path d="M260 1200 L260 850 C260 650 160 650 160 450" stroke="#52525b" strokeWidth="2" strokeDasharray="10 10" fill="none" opacity="0.4" />
-      
-      {/* Nodes */}
       <circle cx="160" cy="200" r="10" fill="#09090b" stroke="#52525b" strokeWidth="2" />
       <text x="190" y="205" className="text-xs fill-zinc-600 font-mono font-bold tracking-widest">v2.5.0</text>
       <circle cx="160" cy="300" r="8" fill="#09090b" stroke="#444" strokeWidth="2" />
@@ -47,11 +45,8 @@ const TrafficLights = () => (
   </div>
 );
 
-// --- UPDATED STATBAR: Directional Fill + Centered Headers ---
 const StatBar = ({ title, labelL, labelR, score, color }) => {
   const [width, setWidth] = useState(0);
-  
-  // Determine which side is dominant
   const isLeftDominant = score >= 50;
   const dominantPercentage = isLeftDominant ? score : 100 - score;
 
@@ -62,27 +57,19 @@ const StatBar = ({ title, labelL, labelR, score, color }) => {
 
   return (
     <div className="w-full">
-      {/* CENTERED HEADER */}
       <div className="text-xs uppercase text-zinc-300 font-bold tracking-[0.2em] mb-3 text-center">
         {title}
       </div>
-
-      {/* Labels */}
       <div className="flex justify-between mb-2 font-bold tracking-tight uppercase text-xs">
         <span className={isLeftDominant ? 'text-white' : 'text-zinc-600 transition-colors duration-500'}>{`<${labelL} />`}</span>
         <span className={!isLeftDominant ? 'text-white' : 'text-zinc-600 transition-colors duration-500'}>{`<${labelR} />`}</span>
       </div>
-
-      {/* TRACK: Flexbox controls start direction */}
       <div className={`h-3 bg-[#1a1a1a] border border-[#333] w-full relative rounded-full overflow-hidden flex ${isLeftDominant ? 'justify-start' : 'justify-end'}`}>
-         {/* Fill Bar */}
          <div 
            className={`h-full transition-all duration-1000 ease-out ${color} opacity-90 rounded-full`}
            style={{ width: `${width}%` }} 
          />
       </div>
-
-      {/* Percentage Label - Aligns with the bar direction */}
       <div className={`flex mt-1 text-[10px] text-blue-400 font-mono font-bold ${isLeftDominant ? 'justify-start' : 'justify-end'}`}>
         <span>{dominantPercentage}% {isLeftDominant ? labelL : labelR}</span>
       </div>
@@ -90,7 +77,6 @@ const StatBar = ({ title, labelL, labelR, score, color }) => {
   );
 };
 
-// --- HELPER: JSDoc Line Renderer ---
 const JSDocLine = ({ text }) => (
   <div className="flex">
     <span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right"> </span>
@@ -101,10 +87,9 @@ const JSDocLine = ({ text }) => (
   </div>
 );
 
-// --- MAIN APP ---
-
 export default function App() {
   const [data, setData] = useState(PROFILES.NINJA);
+  const [lang, setLang] = useState('en'); 
 
   const toggleTrait = (letter1, letter2) => {
     setData(prev => ({
@@ -115,6 +100,8 @@ export default function App() {
     }));
   };
 
+  const t = UI_TEXT[lang];
+
   return (
     <div className={`min-h-screen ${COLORS.bg} text-gray-400 font-sans selection:bg-blue-500/20`}>
       
@@ -123,22 +110,32 @@ export default function App() {
       <nav className="fixed top-0 w-full z-50 px-8 py-6 flex justify-between items-center backdrop-blur-sm bg-[#09090b]/80 border-b border-white/5">
          <div className="flex items-center gap-3">
              <Terminal size={18} className="text-gray-400"/>
-             <span className="font-mono font-bold tracking-wider text-gray-200 text-sm">SUBTEXT_ANALYZER</span>
+             <span className="font-mono font-bold tracking-wider text-gray-200 text-sm">
+                {t.navbar_title}
+             </span>
          </div>
-         <button className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-2 transition border border-gray-700 px-4 py-2 rounded-full hover:bg-gray-800">
-             EXPORT RESULT <Share2 size={14} />
-         </button>
+         <div className="flex gap-4">
+             <button 
+                onClick={() => setLang(lang === 'en' ? 'ko' : 'en')}
+                className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-2 transition border border-gray-700 px-3 py-2 rounded-full hover:bg-gray-800"
+             >
+                <Globe size={14} /> {lang === 'en' ? 'KO' : 'EN'}
+             </button>
+
+             <button className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-2 transition border border-gray-700 px-4 py-2 rounded-full hover:bg-gray-800">
+                 {t.export_btn} <Share2 size={14} />
+             </button>
+         </div>
       </nav>
 
-      {/* --- HERO SECTION --- */}
       <section className="relative z-10 min-h-screen flex flex-col justify-center items-center px-6 pt-24 pb-12 lg:pt-32">
-         
          <div className="max-w-7xl w-full flex flex-col items-center gap-12 lg:gap-24">
             
-            {/* IDENTITY */}
             <div className="flex flex-col md:flex-row items-center justify-center gap-12 lg:gap-32 text-center md:text-left">
                <div>
-                 <div className="text-sm font-bold text-gray-500 mb-2 tracking-[0.3em] uppercase">Identity Calculated</div>
+                 <div className="text-sm font-bold text-gray-500 mb-2 tracking-[0.3em] uppercase">
+                    {t.identity_label}
+                 </div>
                  <h1 className="text-7xl lg:text-9xl font-black text-white tracking-tighter leading-none mb-4 drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
                    {data.type}
                  </h1>
@@ -152,37 +149,31 @@ export default function App() {
                </div>
             </div>
 
-            {/* STATS CARD */}
             <div className="w-full max-w-4xl mx-auto bg-[#121212] border border-[#27272a] p-8 lg:p-14 rounded-3xl shadow-2xl relative">
                <div className="absolute top-0 right-0 p-6 opacity-20 hidden md:block">
                   <Activity size={40} />
                </div>
                
-               {/* Note: I removed the "Core System Parameters" small header because the new centered titles serve that purpose better */}
-               
                <div className="flex flex-col gap-10 lg:gap-14 pt-4">
-                  <StatBar title="Commit Granularity" key={data.type + "AM"} labelL="Atomic" labelR="Monolithic" score={data.stats.AM} color={TRAIT_CONFIG.AM.color} />
-                  <StatBar title="Communication Style" key={data.type + "CD"} labelL="Concise" labelR="Descriptive" score={data.stats.CD} color={TRAIT_CONFIG.CD.color} />
-                  <StatBar title="Problem Solving Approach" key={data.type + "FX"} labelL="Feature" labelR="Fixer" score={data.stats.FX} color={TRAIT_CONFIG.FX.color} />
-                  <StatBar title="Peak Activity Cycle" key={data.type + "DN"} labelL="Day" labelR="Night" score={data.stats.DN} color={TRAIT_CONFIG.DN.color} />
+                  <StatBar title={t.stat_granularity} key={data.type + "AM"} labelL={t.trait_atomic} labelR={t.trait_monolithic} score={data.stats.AM} color={TRAIT_CONFIG.AM.color} />
+                  <StatBar title={t.stat_style} key={data.type + "CD"} labelL={t.trait_concise} labelR={t.trait_descriptive} score={data.stats.CD} color={TRAIT_CONFIG.CD.color} />
+                  <StatBar title={t.stat_problem} key={data.type + "FX"} labelL={t.trait_feature} labelR={t.trait_fixer} score={data.stats.FX} color={TRAIT_CONFIG.FX.color} />
+                  <StatBar title={t.stat_activity} key={data.type + "DN"} labelL={t.trait_day} labelR={t.trait_night} score={data.stats.DN} color={TRAIT_CONFIG.DN.color} />
                </div>
             </div>
 
          </div>
-
          <div className="mt-12 lg:absolute lg:bottom-10 animate-bounce text-gray-600">
             <ChevronDown size={32} />
          </div>
       </section>
 
-      {/* --- DETAILS SECTION (Unchanged) --- */}
       <section className="relative z-10 py-24 px-6">
          <div className="max-w-6xl mx-auto grid lg:grid-cols-12 gap-12">
             
-            {/* CODE WINDOW */}
             <div className="lg:col-span-7">
                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                  <Code className="text-gray-500"/> Source Definition
+                  <Code className="text-gray-500"/> {t.source_def}
                </h3>
                
                <div className={`${COLORS.window} border border-[#333] rounded-lg shadow-2xl overflow-hidden`}>
@@ -191,17 +182,19 @@ export default function App() {
                         <TrafficLights />
                         <span className="text-xs font-mono font-bold text-gray-500">profile.js</span>
                      </div>
-                     <div className="text-[10px] uppercase font-bold text-gray-600">Read Only</div>
+                     <div className="text-[10px] uppercase font-bold text-gray-600">{t.read_only}</div>
                   </div>
                   
                   <div className="p-8 font-mono text-sm leading-loose overflow-x-auto">
                      <div className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right">1</span><span className="text-gray-500">/**</span></div>
                      <div className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right">2</span><span className="text-gray-500"><span className="mr-3 opacity-50">*</span><span className="text-purple-400">@class</span> <span className="text-gray-300 font-bold">{data.title}</span></span></div>
                      <div className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right">3</span><span className="text-gray-500"><span className="mr-3 opacity-50">*</span><span className="text-purple-400">@bio</span></span></div>
-                     {data.description.split('\n').map((line, i) => (
+                     
+                     {data.description[lang].split('\n').map((line, i) => (
                         line === "" ? <div key={i} className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right"> </span><span className="text-gray-500"><span className="mr-3 opacity-50">*</span></span></div> :
                         <div key={i} className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right"> </span><span className="text-gray-500"><span className="mr-3 opacity-50">*</span>{line}</span></div>
                      ))}
+                     
                      <div className="flex"><span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right"> </span><span className="text-gray-500">*/</span></div>
 
                      <div className="flex mt-2"><span className="text-gray-600 mr-4 select-none shrink-0 w-4 text-right">9</span><span><span className={COLORS.s_key}>export const</span> <span className={COLORS.s_num}>Profile</span> = {'{'}<br/></span></div>
@@ -214,10 +207,9 @@ export default function App() {
                </div>
             </div>
 
-            {/* LOGS */}
             <div className="lg:col-span-5 flex flex-col justify-center">
                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                  <GitMerge className="text-purple-500"/> Compatibility Log
+                  <GitMerge className="text-purple-500"/> {t.compatibility}
                </h3>
                <div className="space-y-4">
                   {LOGS.map((log, i) => (
@@ -228,9 +220,10 @@ export default function App() {
                            </span>
                            <span className="font-mono text-[10px] text-gray-600">{log.time}</span>
                         </div>
-                        <p className="text-sm text-gray-400 mb-3 font-mono">{`>> ${log.msg}`}</p>
+                        {/* LOCALIZED MESSAGE */}
+                        <p className="text-sm text-gray-400 mb-3 font-mono">{`>> ${log.msg[lang]}`}</p>
                         <div className="flex items-center gap-2">
-                           <span className="text-[10px] font-bold text-gray-600 uppercase">Target Unit:</span>
+                           <span className="text-[10px] font-bold text-gray-600 uppercase">{t.target_unit}:</span>
                            <span className="text-[10px] font-mono bg-[#222] px-2 py-0.5 rounded text-gray-400 border border-[#333]">
                               {log.type}
                            </span>
@@ -244,7 +237,7 @@ export default function App() {
 
       <footer className="py-12 text-center text-[10px] font-mono text-gray-600 border-t border-[#27272a] bg-[#09090b]">
          <p className="mb-2">SUBTEXT VSCODE EXTENSION</p>
-         <p>SYSTEM ONLINE // v2.4.0</p>
+         <p>{t.system_online} // v2.4.0</p>
       </footer>
 
       <DevTools data={data} setData={setData} toggleTrait={toggleTrait} />
