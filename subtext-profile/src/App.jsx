@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  GitMerge, Terminal, Activity, Share2, Code, ChevronDown, Globe 
+  GitMerge, Terminal, Activity, Share2, Code, ChevronDown, Globe, Search, Loader, Github 
 } from 'lucide-react';
 import AsciiPortrait from './AsciiPortrait';
 import DevTools from './DevTools';
 import { COLORS, PROFILES, TRAIT_CONFIG, LOGS, UI_TEXT } from './constants';
+import { signInWithGitHub, logout, auth } from './firebase';
+import { analyzeProfile } from './githubClient';
+import { onAuthStateChanged } from 'firebase/auth';
 
-// --- GIT GRAPH BACKGROUND (Unchanged) ---
+// --- GIT GRAPH BACKGROUND ---
 const GitGraphBackground = () => (
   <div className="fixed inset-0 z-0 pointer-events-none select-none overflow-hidden">
     <svg className="w-full h-full" viewBox="0 0 1440 1000" preserveAspectRatio="xMidYMid slice">
@@ -37,17 +40,16 @@ const GitGraphBackground = () => (
   </div>
 );
 
+// --- TRAFFIC LIGHTS ---
 const TrafficLights = () => (
   <div className="flex gap-2">
-    {/* Red / Close */}
     <div className="w-3 h-3 rounded-full bg-[#ff5f57] border border-[#e0443e]"></div>
-    {/* Yellow / Minimize */}
     <div className="w-3 h-3 rounded-full bg-[#febc2e] border border-[#d89e24]"></div>
-    {/* Green / Maximize */}
     <div className="w-3 h-3 rounded-full bg-[#28c840] border border-[#1aab29]"></div>
   </div>
 );
 
+// --- STAT BAR ---
 const StatBar = ({ title, labelL, labelR, score, color }) => {
   const [width, setWidth] = useState(0);
   const isLeftDominant = score >= 50;
@@ -80,19 +82,70 @@ const StatBar = ({ title, labelL, labelR, score, color }) => {
   );
 };
 
-const JSDocLine = ({ text }) => (
-  <div className="flex">
-    <span className="text-gray-500 mr-4 select-none shrink-0 w-4 text-right"> </span>
-    <span className="text-gray-500">
-      <span className="mr-3 opacity-50">*</span>
-      {text}
-    </span>
-  </div>
-);
-
 export default function App() {
+  const [token, setToken] = useState(null);
+  const [username, setUsername] = useState('');
+  const [loading, setLoading] = useState(false);
   const [data, setData] = useState(PROFILES.NINJA);
   const [lang, setLang] = useState('en'); 
+
+  // 1. Persistence Logic
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        const storedToken = localStorage.getItem('gh_token');
+        if (storedToken) setToken(storedToken);
+      } else {
+        setToken(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 2. Login Handler
+  const handleLogin = async () => {
+    try {
+      const { user, token } = await signInWithGitHub();
+      setToken(token);
+      localStorage.setItem('gh_token', token); 
+    } catch (e) {
+      alert("Login failed", e);
+    }
+  };
+
+  // 3. Search Handler (CONNECTED)
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!username || !token) return;
+    
+    setLoading(true);
+    try {
+      const result = await analyzeProfile(token, username);
+      
+      // --- DATA MAPPING LOGIC (Added) ---
+      // We take the 4-letter type code (e.g. "MCXD") and find the closest base profile
+      let baseProfile = PROFILES.NINJA;
+      if (result.type.includes('M') && result.type.includes('X')) baseProfile = PROFILES.MECH;
+      else if (result.type.includes('M') && result.type.includes('F')) baseProfile = PROFILES.WIZARD;
+      else if (result.type.includes('A') && result.type.includes('X')) baseProfile = PROFILES.DRONE;
+
+      const mergedProfile = {
+        ...baseProfile,
+        type: result.type, // "MCXD"
+        title: `${username}_${result.type}`, // Custom title
+        stats: result.stats, // Real stats from GraphQL
+        id: result.username // Github username
+      };
+
+      setData(mergedProfile);
+      
+    } catch (err) {
+      console.error(err);
+      alert("Analysis failed. Check username or rate limit.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleTrait = (letter1, letter2) => {
     setData(prev => ({
@@ -113,10 +166,41 @@ export default function App() {
       <nav className="fixed top-0 w-full z-50 px-8 py-6 flex justify-between items-center backdrop-blur-sm bg-[#09090b]/80 border-b border-white/5">
          <div className="flex items-center gap-3">
              <Terminal size={18} className="text-gray-400"/>
-             <span className="font-mono font-bold tracking-wider text-gray-200 text-sm">
+             <span className="hidden md:inline font-mono font-bold tracking-wider text-gray-200 text-sm">
                 {t.navbar_title}
              </span>
          </div>
+
+         {/* --- UPDATED NAVBAR CENTER: AUTH SWITCHER --- */}
+         <div className="flex-1 max-w-md mx-6 flex justify-center">
+            {!token ? (
+                // STATE 1: NOT LOGGED IN
+                <button 
+                  onClick={handleLogin}
+                  className="bg-[#238636] text-white px-5 py-2 rounded-full text-xs font-bold hover:bg-[#2ea043] transition flex items-center gap-2 shadow-[0_0_15px_rgba(46,160,67,0.4)]"
+                >
+                  <Github size={16} /> CONNECT GITHUB
+                </button>
+            ) : (
+                // STATE 2: LOGGED IN (SEARCH BAR)
+                <form onSubmit={handleSearch} className="w-full relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search size={14} className="text-gray-600 group-focus-within:text-blue-500 transition-colors" />
+                    </div>
+                    <input 
+                      type="text" 
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="github_username" 
+                      className="w-full bg-[#121212] border border-[#333] text-gray-300 text-xs rounded-full py-2.5 pl-10 pr-10 focus:outline-none focus:border-blue-500 focus:bg-[#1a1a1a] transition-all font-mono shadow-inner"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                        {loading ? <Loader size={14} className="animate-spin text-blue-500" /> : null}
+                    </div>
+                </form>
+            )}
+         </div>
+
          <div className="flex gap-4">
              <button 
                 onClick={() => setLang(lang === 'en' ? 'ko' : 'en')}
@@ -131,9 +215,11 @@ export default function App() {
          </div>
       </nav>
 
+      {/* --- HERO SECTION --- */}
       <section className="relative z-10 min-h-screen flex flex-col justify-center items-center px-6 pt-24 pb-12 lg:pt-32">
          <div className="max-w-7xl w-full flex flex-col items-center gap-12 lg:gap-24">
             
+            {/* Identity & ASCII */}
             <div className="flex flex-col md:flex-row items-center justify-center gap-12 lg:gap-32 text-center md:text-left">
                <div>
                  <div className="text-sm font-bold text-gray-500 mb-2 tracking-[0.3em] uppercase">
@@ -152,16 +238,17 @@ export default function App() {
                </div>
             </div>
 
+            {/* Stats Card */}
             <div className="w-full max-w-4xl mx-auto bg-[#121212] border border-[#27272a] p-8 lg:p-14 rounded-3xl shadow-2xl relative">
                <div className="absolute top-0 right-0 p-6 opacity-20 hidden md:block">
                   <Activity size={40} />
                </div>
                
                <div className="flex flex-col gap-10 lg:gap-14 pt-4">
-                  <StatBar title={t.stat_granularity} key={data.type + "AM"} labelL={t.trait_atomic} labelR={t.trait_monolithic} score={data.stats.AM} color={TRAIT_CONFIG.AM.color} />
-                  <StatBar title={t.stat_style} key={data.type + "CD"} labelL={t.trait_concise} labelR={t.trait_descriptive} score={data.stats.CD} color={TRAIT_CONFIG.CD.color} />
-                  <StatBar title={t.stat_problem} key={data.type + "FX"} labelL={t.trait_feature} labelR={t.trait_fixer} score={data.stats.FX} color={TRAIT_CONFIG.FX.color} />
-                  <StatBar title={t.stat_activity} key={data.type + "DN"} labelL={t.trait_day} labelR={t.trait_night} score={data.stats.DN} color={TRAIT_CONFIG.DN.color} />
+                  <StatBar title={t.stat_granularity} labelL={t.trait_atomic} labelR={t.trait_monolithic} score={data.stats.AM} color={TRAIT_CONFIG.AM.color} />
+                  <StatBar title={t.stat_style} labelL={t.trait_concise} labelR={t.trait_descriptive} score={data.stats.CD} color={TRAIT_CONFIG.CD.color} />
+                  <StatBar title={t.stat_problem} labelL={t.trait_feature} labelR={t.trait_fixer} score={data.stats.FX} color={TRAIT_CONFIG.FX.color} />
+                  <StatBar title={t.stat_activity} labelL={t.trait_day} labelR={t.trait_night} score={data.stats.DN} color={TRAIT_CONFIG.DN.color} />
                </div>
             </div>
 
@@ -171,6 +258,7 @@ export default function App() {
          </div>
       </section>
 
+      {/* --- DETAILS SECTION --- */}
       <section className="relative z-10 py-24 px-6">
          <div className="max-w-6xl mx-auto grid lg:grid-cols-12 gap-12">
             
@@ -223,7 +311,6 @@ export default function App() {
                            </span>
                            <span className="font-mono text-[10px] text-gray-600">{log.time}</span>
                         </div>
-                        {/* LOCALIZED MESSAGE */}
                         <p className="text-sm text-gray-400 mb-3 font-mono">{`>> ${log.msg[lang]}`}</p>
                         <div className="flex items-center gap-2">
                            <span className="text-[10px] font-bold text-gray-600 uppercase">{t.target_unit}:</span>
@@ -243,6 +330,7 @@ export default function App() {
          <p>{t.system_online} // v2.4.0</p>
       </footer>
 
+      {/* DevTools is here if you need it, but the app works without it now */}
       <DevTools data={data} setData={setData} toggleTrait={toggleTrait} />
     </div>
   );
