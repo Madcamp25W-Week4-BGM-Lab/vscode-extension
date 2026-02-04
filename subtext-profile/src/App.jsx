@@ -1,50 +1,12 @@
+// src/App.jsx
 import React, { useEffect, useState } from 'react';
 import { 
   GitCommit, GitPullRequest, GitMerge, AlertTriangle, 
   Terminal, Activity, Share2, Hash, Code, Cpu, Zap 
 } from 'lucide-react';
 import AsciiPortrait from './AsciiPortrait';
-
-// --- 1. THEME CONFIG (Deep Black V7) ---
-const COLORS = {
-  bg: "bg-[#09090b]",       // Deepest Black/Zinc
-  window: "bg-[#0c0c0e]",   // Slightly lighter window bg
-  panel: "bg-[#121212]",    // Inner panels
-  border: "border-[#27272a]",
-  text: "text-[#a1a1aa]",
-  accent: "text-blue-500",
-  success: "text-emerald-500",
-  warn: "text-amber-500",
-  error: "text-red-500",
-  // Syntax Highlighting
-  s_key: "text-[#7dd3fc]",  // Light Blue (Keys)
-  s_str: "text-[#fda4af]",  // Light Red/Pink (Strings)
-  s_num: "text-[#d8b4fe]",  // Light Purple (Numbers)
-  s_bool: "text-[#fcd34d]", // Amber (Booleans/Null)
-};
-
-const MOCK_RESULT = {
-  type: "ACFN",
-  title: "Night_Surgeon",
-  id: "8f2e-4a1b",
-  description: "Building silently in the shadows. Commits are surgical, precise, and frequent.",
-  stats: { AM: 85, CD: 70, FX: 80, DN: 10 }
-};
-
-const TRAIT_CONFIG = {
-  AM: { left: 'Atomic', right: 'Monolithic', color: 'bg-emerald-500' },
-  CD: { left: 'Concise', right: 'Descriptive', color: 'bg-blue-500' },
-  FX: { left: 'Feature', right: 'Fixer', color: 'bg-amber-500' },
-  DN: { left: 'Day', right: 'Night', color: 'bg-purple-500' }
-};
-
-const LOGS = [
-  { time: "14:02:22", type: "MDXD", event: "CONFLICT_DETECTED", msg: "Incoming massive commit block. Merge unlikely.", status: "error" },
-  { time: "14:05:10", type: "MCFN", event: "CONTEXT_DRIFT", msg: "Large diffs detected during night cycle.", status: "warn" },
-  { time: "14:08:45", type: "ACXD", event: "AUTO_MERGE", msg: "Pattern match found. Synergy 98%.", status: "success" }
-];
-
-// --- 1. COMPONENTS ---
+import DevTools from './DevTools';
+import { COLORS, PROFILES, TRAIT_CONFIG, LOGS } from './constants';
 
 const CircuitBackground = () => (
   <div className="fixed inset-0 z-0 opacity-10 pointer-events-none">
@@ -55,12 +17,6 @@ const CircuitBackground = () => (
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#grid)" />
-      <path d="M 100 0 V 1000" stroke="#333" strokeWidth="1" />
-      <path d="M 300 0 V 1000" stroke="#333" strokeWidth="1" />
-      <path d="M 80% 0 V 1000" stroke="#333" strokeWidth="1" />
-      <circle cx="300" cy="200" r="3" fill="#444" />
-      <circle cx="300" cy="500" r="3" fill="#444" />
-      <circle cx="80%" cy="350" r="3" fill="#444" />
     </svg>
   </div>
 );
@@ -78,17 +34,19 @@ const StatBar = ({ labelL, labelR, score, color }) => {
   const isLeft = score >= 50;
   const targetPct = isLeft ? (score - 50) * 2 : (50 - score) * 2;
   
-  useEffect(() => { setTimeout(() => setWidth(targetPct), 300); }, [targetPct]);
+  // FIX: Removed the setWidth(0) call that caused the error.
+  // Instead, we rely on the parent changing the 'key' prop to reset this component.
+  useEffect(() => { 
+    const timer = setTimeout(() => setWidth(targetPct), 100); 
+    return () => clearTimeout(timer);
+  }, [targetPct]);
 
   return (
     <div className="mb-6 font-mono text-[10px] md:text-xs w-full">
-      {/* Labels Row */}
       <div className="flex justify-between mb-1.5 opacity-80 font-bold tracking-tight">
         <span className={isLeft ? 'text-white' : 'text-gray-600'}>{`<${labelL} />`}</span>
         <span className={!isLeft ? 'text-white' : 'text-gray-600'}>{`<${labelR} />`}</span>
       </div>
-
-      {/* The Smooth Track (Thick, Smooth, No Blocks) */}
       <div className="h-4 bg-[#1a1a1a] border border-[#333] w-full flex relative overflow-hidden rounded-sm">
         <div className="absolute left-1/2 w-[1px] h-full bg-[#444] z-10"></div>
         <div 
@@ -100,8 +58,6 @@ const StatBar = ({ labelL, labelR, score, color }) => {
           }}
         />
       </div>
-
-      {/* Numbers Row */}
       <div className="flex justify-between mt-1 text-[10px] text-gray-500 font-mono">
         <span className={isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{targetPct}%</span>
         <span className={!isLeft ? 'text-blue-400 font-bold' : 'opacity-0'}>{targetPct}%</span>
@@ -110,8 +66,18 @@ const StatBar = ({ labelL, labelR, score, color }) => {
   );
 };
 
-// --- 2. MAIN APP ---
 export default function App() {
+  const [data, setData] = useState(PROFILES.NINJA);
+
+  const toggleTrait = (letter1, letter2) => {
+    setData(prev => ({
+      ...prev,
+      type: prev.type.includes(letter1) 
+        ? prev.type.replace(letter1, letter2) 
+        : prev.type.replace(letter2, letter1)
+    }));
+  };
+
   return (
     <div className={`min-h-screen ${COLORS.bg} text-gray-400 font-sans selection:bg-blue-500/20 flex items-center justify-center p-4 md:p-8`}>
       
@@ -141,31 +107,29 @@ export default function App() {
               <div className="mb-8 flex items-end justify-between">
                  <div>
                     <div className="text-[10px] font-bold text-blue-500 mb-1 tracking-[0.2em] uppercase">profile.json</div>
-                    <h1 className="text-6xl font-black text-white tracking-tighter leading-none mb-1">{MOCK_RESULT.type}</h1>
-                    <div className="text-lg font-mono text-gray-500">{MOCK_RESULT.title}</div>
+                    <h1 className="text-6xl font-black text-white tracking-tighter leading-none mb-1">{data.type}</h1>
+                    <div className="text-lg font-mono text-gray-500">{data.title}</div>
                  </div>
                  <div className="text-right hidden sm:block">
                     <Hash size={32} className="text-[#333] mb-1 ml-auto" />
-                    <div className="text-[10px] font-mono text-[#444]">{MOCK_RESULT.id}</div>
+                    <div className="text-[10px] font-mono text-[#444]">{data.id}</div>
                  </div>
               </div>
 
-              {/* INTEGRATED ASCII PORTRAIT */}
               <div className="mb-8">
-                 <AsciiPortrait type={MOCK_RESULT.type} />
+                 <AsciiPortrait type={data.type} />
               </div>
 
-              {/* JSON Editor View */}
               <div className={`${COLORS.panel} border border-[#27272a] rounded-lg p-6 font-mono text-xs md:text-sm shadow-inner relative group`}>
                  <div className="absolute top-2 right-2 text-[10px] text-[#333] font-bold group-hover:text-[#555] transition">read-only</div>
                  <div className="leading-relaxed">
                     <span className="text-gray-600 mr-3 select-none">1</span><span className={COLORS.s_key}>const</span> <span className={COLORS.s_num}>Profile</span> = {'{'}<br/>
-                    <span className="text-gray-600 mr-3 select-none">2</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"type"</span>: <span className={COLORS.s_str}>"{MOCK_RESULT.type}"</span>,<br/>
-                    <span className="text-gray-600 mr-3 select-none">3</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"alias"</span>: <span className={COLORS.s_str}>"{MOCK_RESULT.title}"</span>,<br/>
+                    <span className="text-gray-600 mr-3 select-none">2</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"type"</span>: <span className={COLORS.s_str}>"{data.type}"</span>,<br/>
+                    <span className="text-gray-600 mr-3 select-none">3</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"alias"</span>: <span className={COLORS.s_str}>"{data.title}"</span>,<br/>
                     <span className="text-gray-600 mr-3 select-none">4</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"traits"</span>: [<br/>
-                    <span className="text-gray-600 mr-3 select-none">5</span>&nbsp;&nbsp;&nbsp;&nbsp;<span className={COLORS.s_str}>"Atomic"</span>, <span className={COLORS.s_str}>"NightOwl"</span>, <span className={COLORS.s_str}>"FeatureDriven"</span><br/>
+                    <span className="text-gray-600 mr-3 select-none">5</span>&nbsp;&nbsp;&nbsp;&nbsp;<span className={COLORS.s_str}>"{data.type.includes('A') ? 'Atomic' : 'Monolithic'}"</span>, <span className={COLORS.s_str}>"{data.type.includes('N') ? 'NightOwl' : 'DayCoder'}"</span><br/>
                     <span className="text-gray-600 mr-3 select-none">6</span>&nbsp;&nbsp;],<br/>
-                    <span className="text-gray-600 mr-3 select-none">7</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"desc"</span>: <span className={COLORS.s_str}>"{MOCK_RESULT.description}"</span><br/>
+                    <span className="text-gray-600 mr-3 select-none">7</span>&nbsp;&nbsp;<span className={COLORS.s_key}>"desc"</span>: <span className={COLORS.s_str}>"{data.description}"</span><br/>
                     <span className="text-gray-600 mr-3 select-none">8</span>{'}'};<span className="animate-pulse w-2 h-4 bg-blue-500/50 inline-block align-middle ml-1"></span>
                  </div>
               </div>
@@ -177,10 +141,12 @@ export default function App() {
                  <div className="flex items-center gap-2 mb-6 text-xs font-bold uppercase tracking-widest text-gray-500">
                     <Activity size={14} /> Performance Metrics
                  </div>
-                 <StatBar labelL="Atomic" labelR="Monolithic" score={MOCK_RESULT.stats.AM} color={TRAIT_CONFIG.AM.color} />
-                 <StatBar labelL="Concise" labelR="Descriptive" score={MOCK_RESULT.stats.CD} color={TRAIT_CONFIG.CD.color} />
-                 <StatBar labelL="Feature" labelR="Fixer" score={MOCK_RESULT.stats.FX} color={TRAIT_CONFIG.FX.color} />
-                 <StatBar labelL="Day" labelR="Night" score={MOCK_RESULT.stats.DN} color={TRAIT_CONFIG.DN.color} />
+                 {/* FIX: We add a 'key' prop here. When 'data.type' changes, React destroys this StatBar and makes a new one. 
+                     This automatically resets the internal width state to 0, triggering the animation. */}
+                 <StatBar key={data.type + "AM"} labelL="Atomic" labelR="Monolithic" score={data.stats.AM} color={TRAIT_CONFIG.AM.color} />
+                 <StatBar key={data.type + "CD"} labelL="Concise" labelR="Descriptive" score={data.stats.CD} color={TRAIT_CONFIG.CD.color} />
+                 <StatBar key={data.type + "FX"} labelL="Feature" labelR="Fixer" score={data.stats.FX} color={TRAIT_CONFIG.FX.color} />
+                 <StatBar key={data.type + "DN"} labelL="Day" labelR="Night" score={data.stats.DN} color={TRAIT_CONFIG.DN.color} />
               </div>
 
               <div className="flex-1 p-8 bg-[#0c0c0e]">
@@ -196,9 +162,7 @@ export default function App() {
                                 <span className={`font-bold ${log.status === 'error' ? COLORS.error : log.status === 'warn' ? COLORS.warn : COLORS.success}`}>
                                    {log.event}
                                 </span>
-                                <span className="text-gray-600 text-[9px] border border-[#333] px-1 rounded">
-                                   target: {log.type}
-                                </span>
+                                <span className="text-gray-600 text-[9px] border border-[#333] px-1 rounded">target: {log.type}</span>
                              </div>
                              <span className="text-gray-400">{`>> ${log.msg}`}</span>
                           </div>
@@ -221,8 +185,9 @@ export default function App() {
               <span>SYSTEM ONLINE</span>
            </div>
         </div>
-
       </div>
+
+      <DevTools data={data} setData={setData} toggleTrait={toggleTrait} />
 
       <style>{`
         @keyframes fade-in {
