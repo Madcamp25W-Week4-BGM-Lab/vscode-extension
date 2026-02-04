@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { getStagedDiff, getRecentCommits } from '../utils/Git';
 import { logError, logInfo, showLog } from '../utils/Logger';
 import { getProjectConfig } from '../utils/Config';
-import { pollForCommit, BACKEND_URL, CommitPollResponse } from '../utils/Network';
+import { pollForTask, BACKEND_URL, CommitPollResponse } from '../utils/Network';
 
 // generateCommitMessage: generates the commit message once button is pressed 
 export async function generateCommitMessage() {
@@ -63,7 +63,7 @@ export async function generateCommitMessage() {
         vscode.window.setStatusBarMessage(`$(sync~spin) SubText: Generating commit...`, 3000);
         
         // Create Task 
-        const initialResponse = await fetch(`${BACKEND_URL}/api/v1/generate-commit`, {
+        const initialResponse = await fetch(`${BACKEND_URL}/api/v1/commits/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -82,17 +82,22 @@ export async function generateCommitMessage() {
         logInfo(`Task Created: ${taskId}. Starting polling...`);
 
         // Poll for results 
-        const finalCommitMessage = await pollForCommit(taskId);
+        const result = await pollForTask<CommitPollResponse>(
+            `${BACKEND_URL}/api/v1/commits/${taskId}`, 
+            "Generating commit..."
+        )
 
-        // Insert into Git Input Box
-        const gitExtension = vscode.extensions.getExtension('vscode.git');
-        if (gitExtension) {
-            const git = gitExtension.exports.getAPI(1);
-            const repo = git.repositories[0];
-            if (repo) {
-                repo.inputBox.value = finalCommitMessage;
-                vscode.window.showInformationMessage('✨ Commit message generated!');
-                logInfo("Commit message generated successfully");
+        if (result.commit_message) {
+            // Insert into Git Input Box
+            const gitExtension = vscode.extensions.getExtension('vscode.git');
+            if (gitExtension) {
+                const git = gitExtension.exports.getAPI(1);
+                const repo = git.repositories[0];
+                if (repo) {
+                    repo.inputBox.value = result.commit_message;
+                    vscode.window.showInformationMessage('✨ Commit message generated!');
+                    logInfo("Commit message generated successfully");
+                }
             }
         }
     } catch (err) {

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { pollForCommit, BACKEND_URL, CommitPollResponse } from '../utils/Network';
+import { pollForTask, BACKEND_URL, CommitPollResponse, ReadmePollResponse } from '../utils/Network';
 
 type FactJson = {
 	repository: { name: string; type: string };
@@ -77,13 +77,8 @@ async function buildFactJson(workspaceFolder: vscode.WorkspaceFolder): Promise<F
 	};
 }
 
-async function fetchReadme(payload: {
-	fact: FactJson;
-	mode: 'draft';
-	doc_target: 'extension';
-	async: false;
-}) {
-	const response = await fetch(`${BACKEND_URL}/api/v1/generate-readme`, {
+async function fetchReadme(payload: any) {
+	const response = await fetch(`${BACKEND_URL}/api/v1/readmes/`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
@@ -122,16 +117,11 @@ export async function startDraftMode() {
 		vscode.window.showErrorMessage(`SubText: Failed to build Fact JSON. ${err}`);
 		return;
 	}
-	const payload: {
-		fact: FactJson;
-		mode: 'draft';
-		doc_target: 'extension';
-		async: false;
-	} = {
+	const payload = {
 		fact,
 		mode: 'draft',
 		doc_target: 'extension',
-		async: false
+		async: true
 	};
 
 	vscode.window.setStatusBarMessage('$(sync~spin) SubText: Generating README...', 3000);
@@ -141,15 +131,24 @@ export async function startDraftMode() {
 		const data = await fetchReadme(payload);
 
 		if (data.task_id) {
-			// TODO: async mode
-			// poll GET /tasks/{task_id} until COMPLETED
-		}
+			const result = await pollForTask<ReadmePollResponse>(
+				`${BACKEND_URL}/api/v1/readmes/${data.task_id}`,
+                "Writing README..."
+			);
 
-		if (!data.content) {
-			throw new Error('No README content returned from server.');
+			if (result.content) {
+                initialContent = result.content;
+            } else {
+                throw new Error("Task completed but returned no content.");
+            }
 		}
-
-		initialContent = data.content;
+		else if (data.content) {
+            // Synchronous fallback (if async:false was used)
+            initialContent = data.content;
+        } 
+        else {
+            throw new Error('No README content returned.');
+        }
 	} catch (err) {
 		vscode.window.showErrorMessage(`SubText: README generation failed. ${err}`);
 		return;
