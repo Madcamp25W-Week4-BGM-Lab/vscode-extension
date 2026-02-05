@@ -32,6 +32,11 @@
         "icon": "$(book)"
       },
       {
+        "command": "subtext.showHabits",
+        "title": "SubText: Check Habits",
+        "icon": "$(graph)"
+      },
+      {
         "command": "subtext.applyReadme",
         "title": "SubText: Apply Draft to README.md",
         "icon": "$(check)",
