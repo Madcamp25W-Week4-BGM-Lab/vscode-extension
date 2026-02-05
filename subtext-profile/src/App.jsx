@@ -55,7 +55,7 @@ const StatBar = ({ title, labelL, labelR, score, color }) => {
 
   return (
     <div className="w-full">
-      <div className="text-xs uppercase text-zinc-300 font-bold tracking-[0.2em] mb-3 text-center">{title}</div>
+      <div className="text-sm uppercase text-zinc-300 font-bold tracking-[0.2em] mb-3 text-center">{title}</div>
       <div className="flex justify-between mb-2 font-bold tracking-tight uppercase text-xs">
         <span className={isLeftDominant ? 'text-white' : 'text-zinc-600'}>{`<${labelL} />`}</span>
         <span className={!isLeftDominant ? 'text-white' : 'text-zinc-600'}>{`<${labelR} />`}</span>
@@ -63,7 +63,7 @@ const StatBar = ({ title, labelL, labelR, score, color }) => {
       <div className={`h-3 bg-[#1a1a1a] border border-[#333] w-full relative rounded-full overflow-hidden flex ${isLeftDominant ? 'justify-start' : 'justify-end'}`}>
          <div className={`h-full transition-all duration-1000 ease-out ${color} opacity-90 rounded-full`} style={{ width: `${width}%` }} />
       </div>
-      <div className={`flex mt-1 text-[10px] text-blue-400 font-mono font-bold ${isLeftDominant ? 'justify-start' : 'justify-end'}`}>
+      <div className={`flex mt-1 text-[13px] text-blue-400 font-mono font-bold ${isLeftDominant ? 'justify-start' : 'justify-end'}`}>
         <span>{dominantPercentage}% {isLeftDominant ? labelL : labelR}</span>
       </div>
     </div>
