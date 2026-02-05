@@ -210,7 +210,7 @@ export default function App() {
 
       </section>
 
-      <DevTools data={data} setData={setData} toggleTrait={() => {}} /> 
+      {/* <DevTools data={data} setData={setData} toggleTrait={() => {}} />  */}
     </div>
   );
 }
