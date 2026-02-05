@@ -121,23 +121,44 @@ export async function openHabitsPanel(context: vscode.ExtensionContext) {
     
     // 2. Setup Message Listener (The Bridge)
     panel.webview.onDidReceiveMessage(async (message) => {
-        if (message.command === 'ANALYZE_LOCAL') {
-            
-            // Show loading notification in VS Code
-            vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: `SubText: Analyzing ${message.name}...`
-            }, async () => {
-                
-                // Run the heavy logic
-                const profile = await analyzeLocalUser(rootPath, message.email, message.name);
-                
-                // Send result back to Webview
-                panel.webview.postMessage({
-                    command: 'LOAD_PROFILE',
-                    payload: profile
+        switch (message.command) {
+            case 'ANALYZE_LOCAL':
+                // Show loading notification in VS Code
+                vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: `SubText: Analyzing ${message.name}...`
+                }, async () => {
+                    
+                    // Run the heavy logic
+                    const profile = await analyzeLocalUser(rootPath, message.email, message.name);
+                    
+                    // Send result back to Webview
+                    panel.webview.postMessage({
+                        command: 'LOAD_PROFILE',
+                        payload: profile
+                    });
                 });
-            });
+                break;
+            case 'LOGIN_GITHUB': // use VsCode Authentication API instead of Firebase 
+                try {
+                    const session = await vscode.authentication.getSession('github', ['repo', 'read:user'], { createIfNone: true });
+                    
+                    if (session) {
+                        panel.webview.postMessage({
+                            command: 'LOGIN_SUCCESS',
+                            payload: {
+                                token: session.accessToken,
+                                user: {
+                                    name: session.account.label,
+                                    avatar: null
+                                }
+                            }
+                        });
+                        vscode.window.showInformationMessage(`Signed in as ${session.account.label}`);
+                    }
+                } catch (e) {
+                    vscode.window.showErrorMessage(`Login Failed: ${e}`);
+                }
         }
     });
 

@@ -116,8 +116,15 @@ export default function App() {
   useEffect(() => {
     const handleMessage = (event) => {
         const message = event.data;
+        // Handle Profile Load 
         if (message.command === 'LOAD_PROFILE') {
             loadProfile(message.payload); // Reuse your existing profile loader
+        }
+
+        // Handle Login Success
+        if (message.command === 'LOGIN_SUCCESS') {
+          const { token, user } = message.payload;
+          setToken(token);
         }
     };
     
@@ -154,14 +161,20 @@ export default function App() {
   }, []);
 
   const handleLogin = async () => {
-    try {
-      const { user, token } = await signInWithGitHub();
-      setToken(token);
-      localStorage.setItem('gh_token', token); 
-    } catch (_e) {
-      alert("Login failed");
+    // Option 1: VsCode Native
+    if (vscode) {
+      vscode.postMessage({ command: 'LOGIN_GITHUB' });
     }
-  };
+    else {
+      try {
+        const { user, token } = await signInWithGitHub();
+        setToken(token);
+        localStorage.setItem('gh_token', token); 
+      } catch (_e) {
+        alert("Login failed");
+      }
+    };
+  }
 
   const handleScanRepo = async (e) => {
     e.preventDefault();
