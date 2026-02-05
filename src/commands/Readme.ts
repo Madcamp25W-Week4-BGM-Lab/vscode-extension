@@ -1,80 +1,51 @@
 import * as vscode from 'vscode';
-import { pollForTask, BACKEND_URL, CommitPollResponse, ReadmePollResponse } from '../utils/Network';
+import { pollForTask, BACKEND_URL, ReadmePollResponse } from '../utils/Network';
 import { getProjectConfig } from '../utils/Config';
+import { generateFactJson } from '../analyzer/generateFactJson';
+import { FactJson, RepoType } from '../analyzer/types';
 
-type FactJson = {
-	repository: { name: string; repo_type: string };
-	runtime?: {
-		frontend: { framework: string };
-		backend?: { language: string };
-	};
-	scripts?: { dev?: string; build?: string; start?: string };
+type BackendPayload = {
+	fact: any;
+	mode: string;
+	doc_target: string;
+	async: boolean;
 };
 
-async function buildFactJson(workspaceFolder: vscode.WorkspaceFolder): Promise<FactJson> {
-	const rootUri = workspaceFolder.uri;
-
-	let hasPackageJson = false;
-	let scripts: { dev?: string; build?: string; start?: string } | undefined;
-
-	try {
-		const packageJsonUri = vscode.Uri.joinPath(rootUri, 'package.json');
-		const data = await vscode.workspace.fs.readFile(packageJsonUri);
-		const text = new TextDecoder().decode(data);
-		const parsed = JSON.parse(text) as { scripts?: Record<string, string> };
-		hasPackageJson = true;
-
-		if (parsed.scripts) {
-			const maybeScripts: { dev?: string; build?: string; start?: string } = {};
-			if (parsed.scripts.dev) { maybeScripts.dev = parsed.scripts.dev; }
-			if (parsed.scripts.build) { maybeScripts.build = parsed.scripts.build; }
-			if (parsed.scripts.start) { maybeScripts.start = parsed.scripts.start; }
-			if (Object.keys(maybeScripts).length > 0) {
-				scripts = maybeScripts;
-			}
-		}
-	} catch {
-		// package.json missing or unreadable: skip scripts
-	}
-
-	// Extension entrypoints in root (best-effort)
-	let hasExtensionEntry = false;
-	try {
-		await vscode.workspace.fs.stat(vscode.Uri.joinPath(rootUri, 'extension.ts'));
-		hasExtensionEntry = true;
-	} catch {}
-	if (!hasExtensionEntry) {
-		try {
-			await vscode.workspace.fs.stat(vscode.Uri.joinPath(rootUri, 'extension.js'));
-			hasExtensionEntry = true;
-		} catch {}
-	}
-
-	// Detect backend presence by any .py file
-	let hasPython = false;
-	try {
-		const matches = await vscode.workspace.findFiles('**/*.py', '**/node_modules/**', 1);
-		hasPython = matches.length > 0;
-	} catch {
-		// ignore search errors
-	}
-
-	const runtime: FactJson['runtime'] = {
-		frontend: {
-			framework: 'VS Code Extension'
-		}
-	};
-	if (hasPython) {
-		runtime.backend = { language: 'Python' };
-	}
+function mapToBackendPayload(input: BackendPayload, repoType: RepoType) {
+	const semantic = input?.fact?.semantic_facts ?? {};
+	const facts = input?.fact?.fs_signals ?? {};
 
 	return {
-		repository: {
-			name: workspaceFolder.name,
-			repo_type: 'tool'
+		fact: {
+			repository: {
+				name: input.fact.repository.name,
+				repo_type: repoType,
+			},
+			analysis_context: {
+				primary_focus: semantic.primary_responsibility
+					? `${semantic.primary_responsibility} on top of the underlying framework`
+					: undefined,
+				problem_domain: semantic.problem_reduced ?? undefined,
+				intended_audience: semantic.intended_audience ?? undefined,
+			},
+			facts: {
+				has_sdk_exports: !!facts.has_sdk_exports,
+				has_api_server: !!facts.has_api_server,
+				has_ml_code: !!facts.has_ml_code,
+				has_cli: !!facts.has_cli,
+				keywords: semantic.keywords ?? undefined,
+			},
+			fs_signals: {
+				has_client: !!facts.has_client,
+				has_dockerfile: !!facts.has_dockerfile,
+				has_k8s_manifests: !!facts.has_k8s_manifests,
+				has_celery_or_queue: !!facts.has_celery_or_queue,
+				has_multiple_services: !!facts.has_multiple_services,
+			},
 		},
-		runtime,
-		...(scripts ? { scripts } : {})
+		mode: input.mode,
+		doc_target: input.doc_target,
+		async: input.async,
 	};
 }
 
@@ -106,18 +77,24 @@ async function fetchReadme(payload: any) {
 //	3. creates the draft, and waits for confirmation in "applyDraftMode"
 export async function startDraftMode() {
 	const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) {
-        vscode.window.showErrorMessage('SubText: Please open a folder first.');
-        return;
-    }
+	if (!workspaceFolders) {
+		vscode.window.showErrorMessage('SubText: Please open a folder first.');
+		return;
+	}
 
 	let fact: FactJson;
 	try {
-		fact = await buildFactJson(workspaceFolders[0]);
+		fact = await generateFactJson(workspaceFolders[0]);
 	} catch (err) {
 		vscode.window.showErrorMessage(`SubText: Failed to build Fact JSON. ${err}`);
 		return;
 	}
+	const payload = {
+		fact,
+		mode: 'draft',
+		doc_target: 'extension',
+		async: true
+	};
 	const rootPath = workspaceFolders[0].uri.fsPath;
 	const config = await getProjectConfig(rootPath);
 	const repoType = config.repository?.type;
@@ -125,39 +102,33 @@ export async function startDraftMode() {
 		vscode.window.showErrorMessage('SubText: repository.type must be one of research | library | service in .subtext.json.');
 		return;
 	}
-	fact.repository.repo_type = repoType;
-	const payload = {
-		fact,
-		mode: 'draft',
-		doc_target: 'extension',
-		async: true
-	};
+	const mappedPayload = mapToBackendPayload(payload, repoType);
 
 	vscode.window.setStatusBarMessage('$(sync~spin) SubText: Generating README...', 3000);
 
 	let initialContent = '';
 	try {
-		const data = await fetchReadme(payload);
+		const data = await fetchReadme(mappedPayload);
 
 		if (data.task_id) {
 			const result = await pollForTask<ReadmePollResponse>(
 				`${BACKEND_URL}/api/v1/readmes/${data.task_id}`,
-                "Writing README..."
+				"Writing README..."
 			);
 
 			if (result.content) {
-                initialContent = result.content;
-            } else {
-                throw new Error("Task completed but returned no content.");
-            }
+				initialContent = result.content;
+			} else {
+				throw new Error("Task completed but returned no content.");
+			}
 		}
 		else if (data.content) {
-            // Synchronous fallback (if async:false was used)
-            initialContent = data.content;
-        } 
-        else {
-            throw new Error('No README content returned.');
-        }
+			// Synchronous fallback (if async:false was used)
+			initialContent = data.content;
+		}
+		else {
+			throw new Error('No README content returned.');
+		}
 	} catch (err) {
 		vscode.window.showErrorMessage(`SubText: README generation failed. ${err}`);
 		return;
@@ -183,10 +154,10 @@ export async function startDraftMode() {
 // applyDraftMode: saves content, kills the draft, resets context
 export async function applyDraftMode() {
 	const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) {
-        vscode.window.showErrorMessage('SubText: No open folder found to save to.');
-        return;
-    }
+	if (!workspaceFolders) {
+		vscode.window.showErrorMessage('SubText: No open folder found to save to.');
+		return;
+	}
 
 	const targetUri = vscode.Uri.joinPath(workspaceFolders[0].uri, 'README.md');
 
@@ -195,9 +166,9 @@ export async function applyDraftMode() {
 	if (!editor) {return; } // editor doesn't exist
 
 	if (editor.document.isUntitled === false) {
-        vscode.window.showWarningMessage('SubText: You are not editing a draft!');
-        return;
-    }
+		vscode.window.showWarningMessage('SubText: You are not editing a draft!');
+		return;
+	}
 
 	const finalContent = editor.document.getText();
 	const data = new TextEncoder().encode(finalContent);
@@ -207,8 +178,8 @@ export async function applyDraftMode() {
 		await vscode.workspace.fs.writeFile(targetUri, data);
 		vscode.window.showInformationMessage('✅ README updated!');
 	} catch (err) {
-        vscode.window.showErrorMessage('Failed to write README');
-    }
+		vscode.window.showErrorMessage('Failed to write README');
+	}
 
 	// Closes the draft
 	await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
@@ -218,5 +189,5 @@ export async function applyDraftMode() {
 
 	// Open real file to confirm 
 	const realDoc = await vscode.workspace.openTextDocument(targetUri);
-    await vscode.window.showTextDocument(realDoc);
+	await vscode.window.showTextDocument(realDoc);
 }
