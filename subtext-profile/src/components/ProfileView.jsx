@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Code, GitMerge, ChevronDown } from 'lucide-react'; 
 import AsciiPortrait from '../AsciiPortrait'; 
-import { TRAIT_CONFIG, LOGS } from '../constants';
+import { TRAIT_CONFIG, LOGS, UI_TEXT } from '../constants';
 
 // --- INTERNAL HELPER COMPONENTS ---
 
@@ -53,6 +53,26 @@ const ProfileView = ({ data, t, lang }) => {
   // Select logs specific to this MBTI type, or fallback to ACFN if undefined
   const currentLogs = LOGS[data.type] || LOGS.ACFN;
 
+  // Derive trait tags from the type code (e.g., A, C, F, N)
+  const getTraits = (type) => {
+    const traits = [];
+    if (type.includes('A')) traits.push({ label: t.trait_atomic, color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' });
+    else traits.push({ label: t.trait_monolithic, color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' });
+
+    if (type.includes('C')) traits.push({ label: t.trait_concise, color: 'bg-blue-500/20 text-blue-400 border-blue-500/50' });
+    else traits.push({ label: t.trait_descriptive, color: 'bg-blue-500/20 text-blue-400 border-blue-500/50' });
+
+    if (type.includes('F')) traits.push({ label: t.trait_feature, color: 'bg-amber-500/20 text-amber-400 border-amber-500/50' });
+    else traits.push({ label: t.trait_fixer, color: 'bg-amber-500/20 text-amber-400 border-amber-500/50' });
+
+    if (type.includes('N')) traits.push({ label: t.trait_night, color: 'bg-purple-500/20 text-purple-400 border-purple-500/50' });
+    else traits.push({ label: t.trait_day, color: 'bg-purple-500/20 text-purple-400 border-purple-500/50' });
+    
+    return traits;
+  };
+
+  const traitTags = getTraits(data.type);
+
   return (
     <>
       <div className="max-w-7xl w-full flex flex-col items-center gap-12 lg:gap-24 animate-fade-in">
@@ -60,9 +80,31 @@ const ProfileView = ({ data, t, lang }) => {
           <div>
             <div className="text-sm font-bold text-gray-500 mb-2 tracking-[0.3em] uppercase">{t.identity_label}</div>
             <h1 className="text-7xl lg:text-9xl font-black text-white tracking-tighter leading-none mb-4 drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">{data.type}</h1>
-            <div className="text-2xl lg:text-3xl font-mono text-gray-500 font-light border-l-4 border-gray-700 pl-6 inline-block">{data.title}</div>
+            
+            {/* Title & Oneliner Section */}
+            <div className="mb-6">
+               <div className="text-2xl lg:text-3xl font-mono text-gray-300 font-light border-l-4 border-gray-700 pl-6 inline-block mb-2">
+                 {data.title}
+               </div>
+               {/* New Oneliner Display */}
+               {data.oneliner && (
+                 <div className="pl-6 text-sm lg:text-base font-mono text-gray-500 italic max-w-lg">
+                   "{data.oneliner[lang]}"
+                 </div>
+               )}
+            </div>
+
+            {/* Trait Tags */}
+            <div className="flex flex-wrap gap-2 pl-6">
+              {traitTags.map((trait, idx) => (
+                <span key={idx} className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded border ${trait.color}`}>
+                  {trait.label}
+                </span>
+              ))}
+            </div>
+
           </div>
-          <div className="transform scale-100 lg:scale-150 origin-center md:origin-left">
+          <div className="transform scale-100 lg:scale-150 origin-center md:origin-left mt-8 md:mt-0">
              <AsciiPortrait type={data.type} variant="full" />
           </div>
         </div>
