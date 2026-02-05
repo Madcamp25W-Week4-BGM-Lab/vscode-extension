@@ -259,7 +259,11 @@ export default function App() {
             </div>
              
              {loading && view === 'LIST' && (
-                <div className="flex justify-center p-12"><Loader className="animate-spin text-blue-500" size={32} /></div>
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+                  <div className="bg-[#18181b] p-4 rounded-full border border-[#27272a] shadow-2xl">
+                    <Loader className="animate-spin text-blue-500" size={32} />
+                  </div>
+                </div>
              )}
 
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
