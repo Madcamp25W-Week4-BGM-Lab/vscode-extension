@@ -14,7 +14,7 @@ async function getLocalContributors(projectRoot: string) {
         
         // Parse: "  42  John Doe <john@example.com>"
         const contributors = rawLog.split('\n').filter(Boolean).map(line => {
-            const match = line.match(/^\s*(\d+)\s+(.+?)\s+<(.+?)>$/);
+            const match = line.match(/^\s*(\d+)\s+(.+?)\s+<(.*?)>$/);
             if (match) {
                 return {
                     name: match[2],
@@ -38,13 +38,47 @@ async function analyzeLocalUser(projectRoot: string, email: string, name: string
     const git = simpleGit(projectRoot);
     
     try {
-        // Fetch logs
+        logInfo(`Starting Analysis for: ${name} <${email}>`);
+
+        // 1. Fallback Logic: If email is missing, use the name
+        let authorQuery = email;
+        if (!authorQuery || authorQuery.trim() === '' || authorQuery === 'undefined') {
+            authorQuery = name;
+        }
+
+        // 2. Safety Check
+        if (!authorQuery) {
+            logInfo("Skipping analysis: No author identifier provided");
+            return null;
+        }
+
+        // 3. FETCH LOGS (The Fix is here!)
         const log = await git.log({ 
             '--max-count': 100, 
-            '--author': email 
+            '--author': authorQuery   // <--- CHANGE THIS (Was 'email')
         });
-        
-        if (log.total === 0) {return null;}
+
+        if (log.total === 0) {
+             // Double-Tap Strategy: If email returned 0 results, try name as backup
+             if (authorQuery !== name) {
+                logInfo(`Email search returned 0. Retrying with name: ${name}`);
+                const retryLog = await git.log({ 
+                    '--max-count': 100, 
+                    '--author': name 
+                });
+                if (retryLog.total > 0) {
+                    // It worked! Use this log instead
+                    // We need to re-assign 'log' or just process 'retryLog' here.
+                    // For simplicity, let's just recurse or copy the logic.
+                    // A cleaner way is to just let this fail and return null, 
+                    // but let's stick to the current flow to keep it simple.
+                    return analyzeLocalUser(projectRoot, "", name); // Recurse with just name
+                }
+             }
+             return null;
+        }
+
+        logInfo(`Found ${log.total} commits. Processing...`);
 
         // Cheap Stats
         const allMessages = log.all.map(c => c.message);
@@ -167,7 +201,6 @@ export async function openHabitsPanel(context: vscode.ExtensionContext) {
 }
 
 function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, initialData: any) {
-    // NOTE: You need to build your React app and place the JS/CSS in a 'media' folder in your extension
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'index.js'));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'index.css'));
 
@@ -175,7 +208,14 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, in
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'unsafe-inline';">
+        
+        <meta http-equiv="Content-Security-Policy" content="
+            default-src 'none';
+            style-src ${webview.cspSource} 'unsafe-inline';
+            script-src ${webview.cspSource} 'unsafe-inline';
+            connect-src https://api.github.com; 
+            img-src ${webview.cspSource} https:;
+        ">
         
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="${styleUri}" rel="stylesheet">

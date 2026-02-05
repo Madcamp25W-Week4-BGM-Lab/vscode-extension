@@ -118,7 +118,12 @@ export default function App() {
         const message = event.data;
         // Handle Profile Load 
         if (message.command === 'LOAD_PROFILE') {
-            loadProfile(message.payload); // Reuse your existing profile loader
+          if (message.payload) {
+            loadProfile(message.payload);
+          } else {
+            console.error("Profile analysis returned null.");
+          }
+          setLoading(false);
         }
 
         // Handle Login Success
@@ -185,7 +190,7 @@ export default function App() {
       setContributors(list);
       setView('LIST');
     } catch (err) {
-      alert("Repo not found or access denied.");
+      console.error("Search failed:", err);
     } finally {
       setLoading(false);
     }
