@@ -4,19 +4,44 @@ import simpleGit from 'simple-git';
 import * as Analysis from '../utils/Analysis';
 import { logInfo, logError } from '../utils/Logger';
 
-// 1. THE ANALYZER (Server-Side Logic)
-async function analyzeLocalUser(projectRoot: string) {
+// SCAN CONTRIBUTORS IN REPOSITORY
+async function getLocalContributors(projectRoot: string) {
+    const git = simpleGit(projectRoot);
+    try {
+        // 'git shortlog' gives us a nice summary of names/emails/commit counts
+        // -s: summary, -n: numbered (sort by count), -e: include email
+        const rawLog = await git.raw(['shortlog', '-sne', 'HEAD']);
+        
+        // Parse: "  42  John Doe <john@example.com>"
+        const contributors = rawLog.split('\n').filter(Boolean).map(line => {
+            const match = line.match(/^\s*(\d+)\s+(.+?)\s+<(.+?)>$/);
+            if (match) {
+                return {
+                    name: match[2],
+                    email: match[3],
+                    commits: new Array(parseInt(match[1])), // Dummy array for length check in UI
+                    avatar: null // Local git doesn't have avatars
+                };
+            }
+            return null;
+        }).filter(Boolean);
+
+        return contributors;
+    } catch (e) {
+        logError("Failed to scan contributors", e);
+        return [];
+    }
+}
+
+// ANALYZE LOCAL USER
+async function analyzeLocalUser(projectRoot: string, email: string, name: string) {
     const git = simpleGit(projectRoot);
     
     try {
-        // Auto-detect author from git config
-        let authorEmail = (await git.getConfig('user.email')).value;
-        let authorName = (await git.getConfig('user.name')).value;
-        
         // Fetch logs
         const log = await git.log({ 
             '--max-count': 100, 
-            ...(authorEmail ? { '--author': authorEmail } : {}) 
+            '--author': email 
         });
         
         if (log.total === 0) {return null;}
@@ -67,7 +92,7 @@ async function analyzeLocalUser(projectRoot: string) {
 
         return {
             ...result,
-            username: authorName || "Dev",
+            username: name || "Dev",
             totalCommits: log.total
         };
 
@@ -77,39 +102,47 @@ async function analyzeLocalUser(projectRoot: string) {
     }
 }
 
-// 2. THE WEBVIEW PANEL
+// THE WEBVIEW PANEL
 export async function openHabitsPanel(context: vscode.ExtensionContext) {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders) {
-        vscode.window.showErrorMessage("SubText: Open a folder to view habits.");
+        vscode.window.showErrorMessage("SubText: Open a folder first.");
         return;
     }
+    const rootPath = workspaceFolders[0].uri.fsPath;
 
-    // Create Panel
     const panel = vscode.window.createWebviewPanel(
-        'subtextHabits',
-        'SubText Habits',
-        vscode.ViewColumn.One,
-        {
-            enableScripts: true,
-            localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')]
-        }
+        'subtextHabits', 'SubText Habits', vscode.ViewColumn.One,
+        { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')] }
     );
 
-    // Show Loading State
-    panel.webview.html = `<!DOCTYPE html><html><body style="background:#09090b;color:#888;display:flex;justify-content:center;align-items:center;height:100vh;font-family:monospace;">Running Neural Scan...</body></html>`;
+    // 1. Initial Load: Just get the LIST
+    const contributors = await getLocalContributors(rootPath);
+    
+    // 2. Setup Message Listener (The Bridge)
+    panel.webview.onDidReceiveMessage(async (message) => {
+        if (message.command === 'ANALYZE_LOCAL') {
+            
+            // Show loading notification in VS Code
+            vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: `SubText: Analyzing ${message.name}...`
+            }, async () => {
+                
+                // Run the heavy logic
+                const profile = await analyzeLocalUser(rootPath, message.email, message.name);
+                
+                // Send result back to Webview
+                panel.webview.postMessage({
+                    command: 'LOAD_PROFILE',
+                    payload: profile
+                });
+            });
+        }
+    });
 
-    // Run Analysis
-    const rootPath = workspaceFolders[0].uri.fsPath;
-    const data = await analyzeLocalUser(rootPath);
-
-    if (!data) {
-        panel.webview.html = `<h1>No Commits Found</h1>`;
-        return;
-    }
-
-    // Inject Data into HTML
-    panel.webview.html = getWebviewContent(panel.webview, context.extensionUri, data);
+    // 3. Render HTML with the LIST as initial data
+    panel.webview.html = getWebviewContent(panel.webview, context.extensionUri, contributors);
 }
 
 function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, initialData: any) {

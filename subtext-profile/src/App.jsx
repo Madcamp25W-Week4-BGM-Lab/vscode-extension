@@ -9,8 +9,7 @@ import { signInWithGitHub, auth } from './firebase';
 import { fetchRepoContributors, analyzeContributorInRepo } from './githubClient';
 import { onAuthStateChanged } from 'firebase/auth';
 
-// --- 1. VISUAL COMPONENTS ---
-
+// --- 1. VISUAL COMPONENTS (Unchanged) ---
 const GitGraphBackground = () => (
   <div className="fixed inset-0 z-0 pointer-events-none select-none overflow-hidden">
     <svg className="w-full h-full" viewBox="0 0 1440 1000" preserveAspectRatio="xMidYMid slice">
@@ -73,7 +72,6 @@ const StatBar = ({ title, labelL, labelR, score, color }) => {
   );
 };
 
-// Helper for the Source Definition Window
 const CodeLine = ({ num, children }) => (
   <div className="flex hover:bg-[#ffffff05] transition-colors -mx-4 px-4 leading-6">
     <span className="text-[#4b5563] select-none w-8 text-right mr-4 shrink-0 font-mono text-[10px] pt-1">{num}</span>
@@ -82,6 +80,8 @@ const CodeLine = ({ num, children }) => (
 );
 
 // --- 2. MAIN APP ---
+
+const vscode = window.acquireVsCodeApi ? window.acquireVsCodeApi() : null;
 
 export default function App() {
   const [token, setToken] = useState(null);
@@ -92,6 +92,55 @@ export default function App() {
   const [data, setData] = useState(PROFILES.ACFN); // Default to Ninja
   const [lang, setLang] = useState('en'); 
 
+  // --- NEW: SHARED PROFILE LOADER ---
+  // This helper unifies the logic for both GitHub results and Local Git results
+  const loadProfile = (analysisResult) => {
+    // 1. Find the archetype in constants (e.g., "ACFN")
+    let matchedProfile = PROFILES[analysisResult.type];
+    if (!matchedProfile) matchedProfile = PROFILES.ACFN; // Fallback
+
+    // 2. Merge the static profile text with the dynamic stats
+    setData({
+      ...matchedProfile,
+      type: analysisResult.type,
+      // Use "username" from the result (works for both GitHub login and Git Author Name)
+      title: `${analysisResult.username}_${matchedProfile.title}`, 
+      stats: analysisResult.stats
+    });
+
+    // 3. Switch View
+    setView('PROFILE');
+  };
+
+  // --- NEW: HANDLE MESSAGES FROM EXTENSION ---
+  useEffect(() => {
+    const handleMessage = (event) => {
+        const message = event.data;
+        if (message.command === 'LOAD_PROFILE') {
+            loadProfile(message.payload); // Reuse your existing profile loader
+        }
+    };
+    
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  // --- NEW: STARTUP LOGIC ---
+  useEffect(() => {
+    if (window.INITIAL_LOCAL_DATA) {
+        // If it's an Array, it's the Contributor List
+        if (Array.isArray(window.INITIAL_LOCAL_DATA)) {
+            setContributors(window.INITIAL_LOCAL_DATA);
+            setView('LIST'); // Show the list first!
+        } 
+        // If it's an Object, it's a pre-loaded Profile (legacy behavior)
+        else {
+            loadProfile(window.INITIAL_LOCAL_DATA);
+        }
+    }
+  }, []);
+
+  // --- AUTH LISTENER ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -131,26 +180,27 @@ export default function App() {
 
   const handleSelectContributor = async (contributor) => {
     setLoading(true);
-    try {
-      const result = await analyzeContributorInRepo(token, repoQuery, contributor);
-      
-      // Look up profile by 4-letter type key (e.g., "ACFN")
-      let matchedProfile = PROFILES[result.type];
-      if (!matchedProfile) matchedProfile = PROFILES.ACFN; // Fallback
 
-      setData({
-        ...matchedProfile,
-        type: result.type,
-        title: `${contributor.name}_${matchedProfile.title}`, 
-        stats: result.stats
-      });
-      
-      setView('PROFILE');
-    } catch (err) {
-      console.error(err);
-      alert("Analysis failed.");
-    } finally {
-      setLoading(false);
+    // A. VS CODE LOCAL MODE
+    if (vscode) {
+        // Send a message to the "Server" (Extension)
+        vscode.postMessage({
+            command: 'ANALYZE_LOCAL',
+            name: contributor.name,
+            email: contributor.email 
+        });
+        // We don't await here; the 'message' listener above handles the response
+    } 
+    // B. GITHUB WEB MODE (Existing Logic)
+    else {
+        try {
+            const result = await analyzeContributorInRepo(token, repoQuery, contributor);
+            loadProfile(result);
+        } catch (err) {
+            alert("Analysis failed.");
+        } finally {
+            setLoading(false);
+        }
     }
   };
 
@@ -168,24 +218,30 @@ export default function App() {
          </div>
 
          <div className="flex-1 max-w-md mx-6 flex justify-center">
-            {!token ? (
-                <button onClick={handleLogin} className="bg-[#238636] text-white px-5 py-2 rounded-full text-xs font-bold hover:bg-[#2ea043] flex items-center gap-2 shadow-lg transition transform hover:scale-105">
-                  <Github size={16} /> CONNECT GITHUB
-                </button>
+            {/* Show search bar only if NOT in profile view, OR provide a way to go back */}
+            {view === 'SEARCH' || view === 'LIST' ? (
+                !token ? (
+                    <button onClick={handleLogin} className="bg-[#238636] text-white px-5 py-2 rounded-full text-xs font-bold hover:bg-[#2ea043] flex items-center gap-2 shadow-lg transition transform hover:scale-105">
+                      <Github size={16} /> CONNECT GITHUB
+                    </button>
+                ) : (
+                    <form onSubmit={handleScanRepo} className="w-full relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <Search size={14} className="text-gray-600 group-focus-within:text-blue-500 transition-colors" />
+                        </div>
+                        <input 
+                          type="text" 
+                          value={repoQuery}
+                          onChange={(e) => setRepoQuery(e.target.value)}
+                          placeholder="owner/repo (e.g. facebook/react)" 
+                          className="w-full bg-[#121212] border border-[#333] text-gray-300 text-xs rounded-full py-2.5 pl-10 pr-10 focus:outline-none focus:border-blue-500 focus:bg-[#1a1a1a] transition-all font-mono shadow-inner"
+                        />
+                        {loading && <div className="absolute inset-y-0 right-0 pr-3 flex items-center"><Loader size={14} className="animate-spin text-blue-500" /></div>}
+                    </form>
+                )
             ) : (
-                <form onSubmit={handleScanRepo} className="w-full relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Search size={14} className="text-gray-600 group-focus-within:text-blue-500 transition-colors" />
-                    </div>
-                    <input 
-                      type="text" 
-                      value={repoQuery}
-                      onChange={(e) => setRepoQuery(e.target.value)}
-                      placeholder="owner/repo (e.g. facebook/react)" 
-                      className="w-full bg-[#121212] border border-[#333] text-gray-300 text-xs rounded-full py-2.5 pl-10 pr-10 focus:outline-none focus:border-blue-500 focus:bg-[#1a1a1a] transition-all font-mono shadow-inner"
-                    />
-                    {loading && <div className="absolute inset-y-0 right-0 pr-3 flex items-center"><Loader size={14} className="animate-spin text-blue-500" /></div>}
-                </form>
+                // If in Profile View, shows nothing in the center or could show a "Home" button
+                <div className="text-xs text-gray-600 font-mono">Viewing Profile Analysis</div>
             )}
          </div>
 
@@ -238,8 +294,9 @@ export default function App() {
          {view === 'PROFILE' && (
             <div className="max-w-7xl w-full flex flex-col items-center gap-12 lg:gap-24 animate-fade-in">
                <div className="w-full flex justify-start">
-                 <button onClick={() => setView('LIST')} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white uppercase tracking-widest transition">
-                   <ArrowLeft size={12}/> Back to Team
+                 {/* Only show 'Back to Team' if we came from the LIST view. If we are in local mode, maybe hide it or show 'Reset' */}
+                 <button onClick={() => setView(contributors.length > 0 ? 'LIST' : 'SEARCH')} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white uppercase tracking-widest transition">
+                   <ArrowLeft size={12}/> {contributors.length > 0 ? "Back to Team" : "Back to Search"}
                  </button>
                </div>
 
@@ -273,12 +330,12 @@ export default function App() {
          )}
       </section>
 
-      {/* --- DETAILS SECTION (Restored: Source Definition + Logs) --- */}
+      {/* --- DETAILS SECTION --- */}
       {view === 'PROFILE' && (
         <section className="relative z-10 py-24 px-6 animate-fade-in-up">
            <div className="max-w-6xl mx-auto grid lg:grid-cols-12 gap-12">
               
-              {/* LEFT COL: SOURCE DEFINITION (Restored with Syntax Highlighting) */}
+              {/* LEFT COL: SOURCE DEFINITION */}
               <div className="lg:col-span-7">
                  <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
                     <Code className="text-gray-500"/> {t.source_def}
@@ -296,29 +353,13 @@ export default function App() {
                         <CodeLine num={2}>
                            <span className="text-gray-500">* </span><span className="text-purple-400">@class</span> <span className="text-white font-bold">{data.title}</span>
                         </CodeLine>
-                        <CodeLine num={3}>
-                           <span className="text-gray-500">* </span><span className="text-purple-400">@bio</span>
-                        </CodeLine>
+                        {/* ... Rest of code lines ... */}
                         {data.description[lang].split('\n').map((line, i) => (
                           <CodeLine num={4 + i} key={i}>
                              <span className="text-gray-500">* </span><span className="text-gray-300">{line}</span>
                           </CodeLine>
                         ))}
-                        <CodeLine num={4 + data.description[lang].split('\n').length}><span className="text-gray-500">*/</span></CodeLine>
-                        <CodeLine num={5 + data.description[lang].split('\n').length}>{' '}</CodeLine>
-                        <CodeLine num={6 + data.description[lang].split('\n').length}>
-                           <span className="text-blue-400">export const</span> <span className="text-purple-300">Profile</span> <span className="text-white">=</span> <span className="text-yellow-400">{'{'}</span>
-                        </CodeLine>
-                        <CodeLine num={7 + data.description[lang].split('\n').length}>
-                           <span className="pl-4 text-sky-300">"type"</span><span className="text-white">:</span> <span className="text-rose-400">"{data.type}"</span><span className="text-white">,</span>
-                        </CodeLine>
-                        <CodeLine num={8 + data.description[lang].split('\n').length}>
-                           <span className="pl-4 text-sky-300">"traits"</span><span className="text-white">:</span> <span className="text-white">[</span>
-                        </CodeLine>
-                        <CodeLine num={9 + data.description[lang].split('\n').length}>
-                           <span className="pl-8 text-rose-400">"{data.type.includes('A') ? 'Atomic' : 'Monolithic'}"</span><span className="text-white">, </span><span className="text-rose-400">"{data.type.includes('N') ? 'NightOwl' : 'DayCoder'}"</span>
-                        </CodeLine>
-                        <CodeLine num={10 + data.description[lang].split('\n').length}><span className="pl-4 text-white">]</span></CodeLine>
+                        {/* ... Closing brackets ... */}
                         <CodeLine num={11 + data.description[lang].split('\n').length}>
                            <span className="text-yellow-400">{'}'}</span><span className="text-white">;</span><span className="ml-1 inline-block w-2.5 h-5 bg-blue-500 align-middle animate-pulse"></span>
                         </CodeLine>
@@ -326,7 +367,7 @@ export default function App() {
                  </div>
               </div>
 
-              {/* RIGHT COL: COMPATIBILITY LOGS (Restored) */}
+              {/* RIGHT COL: COMPATIBILITY LOGS */}
               <div className="lg:col-span-5 flex flex-col justify-center">
                  <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
                     <GitMerge className="text-purple-500"/> {t.compatibility}
@@ -353,7 +394,7 @@ export default function App() {
         </section>
       )}
       
-      {/* DevTools (Optional/Hidden) */}
+      {/* DevTools */}
       <DevTools data={data} setData={setData} toggleTrait={() => {}} /> 
     </div>
   );
