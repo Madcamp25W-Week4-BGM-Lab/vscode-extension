@@ -50,6 +50,9 @@ const CodeLine = ({ num, children }) => (
 // --- MAIN COMPONENT ---
 
 const ProfileView = ({ data, t, lang }) => {
+  // Select logs specific to this MBTI type, or fallback to ACFN if undefined
+  const currentLogs = LOGS[data.type] || LOGS.ACFN;
+
   return (
     <>
       <div className="max-w-7xl w-full flex flex-col items-center gap-12 lg:gap-24 animate-fade-in">
@@ -88,7 +91,7 @@ const ProfileView = ({ data, t, lang }) => {
                  <GitMerge className="text-purple-500"/> {t.compatibility}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {LOGS.map((log, i) => (
+                 {currentLogs.map((log, i) => (
                     <div key={i} className="bg-[#121212] border border-[#27272a] p-5 rounded-xl hover:border-gray-600 transition group relative overflow-hidden flex items-start gap-5">
                        
                        {/* Status Indicator Line */}
