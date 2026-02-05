@@ -1,7 +1,7 @@
 import React from 'react';
 
-// HIGH-FIDELITY ASCII COLLECTION
-const ARTWORK = {
+// HIGH-FIDELITY ASCII COLLECTION (FULL SIZE)
+const FULL_ARTWORK = {
   // NINJA: The "Ghost in the Shell" Hacker
   NINJA: `
       .           .
@@ -63,7 +63,35 @@ const ARTWORK = {
     `
 };
 
-const AsciiPortrait = ({ type }) => {
+// COMPACT ICONS FOR LOGS
+const COMPACT_ARTWORK = {
+  NINJA: `
+   .---.
+  |  _  |
+   \\___/
+  /     \\
+  `,
+  MECH: `
+  [###]
+  | o |
+  |___|
+  /   \\
+  `,
+  WIZARD: `
+    ____
+   (    )
+   | <  |
+   /____\\
+  `,
+  OPERATOR: `
+   /===\\
+  | O O |
+   \\_V_/
+   /   \\
+  `
+};
+
+const AsciiPortrait = ({ type, variant = 'full' }) => {
   // 1. Determine Archetype
   let bodyKey = "NINJA"; 
   let label = "UNKNOWN";
@@ -91,22 +119,27 @@ const AsciiPortrait = ({ type }) => {
   const isNight = type.includes('N');
   const isDescriptive = type.includes('D');
 
-  // 3. Get Artwork
-  const finalArt = ARTWORK[bodyKey];
+  // 3. Get Artwork based on variant
+  const isCompact = variant === 'compact';
+  const finalArt = isCompact ? COMPACT_ARTWORK[bodyKey] : FULL_ARTWORK[bodyKey];
 
+  if (isCompact) {
+    return (
+      <div className={`flex items-center justify-center p-2 bg-[#09090b] border border-[#27272a] rounded-lg w-20 h-20 shrink-0`}>
+         <pre className={`font-mono text-[8px] leading-[1.1] whitespace-pre select-none ${colorClass}`}>
+            {finalArt}
+         </pre>
+      </div>
+    );
+  }
+
+  // DEFAULT FULL RENDER
   return (
     <div className={`flex flex-col items-center justify-center p-8 border border-[#27272a] bg-[#121212] rounded-xl relative overflow-hidden group w-72 h-80 shadow-2xl`}>
-      
-      {/* Dynamic Background Glow */}
       <div className={`absolute inset-0 opacity-5 blur-3xl ${colorClass.replace('text-', 'bg-')}`}></div>
-
-      {/* The Rendered ASCII */}
-      {/* Increased font size slightly and line-height for readability */}
       <pre className={`font-mono text-[11px] leading-[1.2] whitespace-pre select-none relative z-10 ${colorClass} transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_10px_currentColor]`}>
         {finalArt}
       </pre>
-
-      {/* The Label */}
       <div className="absolute bottom-6 flex gap-3 text-[10px] font-mono tracking-widest uppercase text-zinc-600">
          <span>{label}</span>
          <span className="text-zinc-700">|</span>
@@ -114,8 +147,6 @@ const AsciiPortrait = ({ type }) => {
          <span className="text-zinc-700">|</span>
          <span className={isDescriptive ? "text-indigo-400" : "text-teal-400"}>{isDescriptive ? "DESC" : "CONC"}</span>
       </div>
-
-      {/* CRT Scanline Effect (Subtle) */}
       <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]"></div>
     </div>
   );

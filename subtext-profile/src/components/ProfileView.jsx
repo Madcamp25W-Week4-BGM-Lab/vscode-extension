@@ -60,7 +60,7 @@ const ProfileView = ({ data, t, lang }) => {
             <div className="text-2xl lg:text-3xl font-mono text-gray-500 font-light border-l-4 border-gray-700 pl-6 inline-block">{data.title}</div>
           </div>
           <div className="transform scale-100 lg:scale-150 origin-center md:origin-left">
-             <AsciiPortrait type={data.type} />
+             <AsciiPortrait type={data.type} variant="full" />
           </div>
         </div>
 
@@ -80,15 +80,59 @@ const ProfileView = ({ data, t, lang }) => {
       </div>
 
       {/* DETAILS SECTION */}
-      <section className="relative z-10 py-24 px-6 animate-fade-in-up w-full">
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-12 gap-12">
+      <section className="relative z-10 py-24 px-6 animate-fade-in-up w-full max-w-6xl mx-auto flex flex-col gap-16">
            
-           {/* LEFT COL: SOURCE DEFINITION */}
-           <div className="lg:col-span-7">
+           {/* SECTION 1: COMPATIBILITY LOGS */}
+           <div className="w-full">
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                 <GitMerge className="text-purple-500"/> {t.compatibility}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {LOGS.map((log, i) => (
+                    <div key={i} className="bg-[#121212] border border-[#27272a] p-5 rounded-xl hover:border-gray-600 transition group relative overflow-hidden flex items-start gap-5">
+                       
+                       {/* Status Indicator Line */}
+                       <div className={`absolute left-0 top-0 bottom-0 w-1 ${log.status === 'error' ? 'bg-red-500' : log.status === 'warn' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                       
+                       {/* Compact ASCII Portrait */}
+                       <AsciiPortrait type={log.type} variant="compact" />
+
+                       {/* Log Content */}
+                       <div className="flex flex-col w-full min-w-0">
+                          {/* Header: Event & Time */}
+                          <div className="flex justify-between items-center mb-2">
+                             <span className={`text-xs font-bold uppercase tracking-wider ${log.status === 'error' ? 'text-red-400' : log.status === 'warn' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                {log.event}
+                             </span>
+                             <span className="font-mono text-[10px] text-gray-600">{log.time}</span>
+                          </div>
+
+                          {/* Message */}
+                          <p className="text-sm text-gray-400 mb-4 font-mono leading-relaxed break-words">
+                             {`>> ${log.msg[lang]}`}
+                          </p>
+
+                          {/* Target Unit */}
+                          <div className="mt-auto">
+                             <div className="text-[10px] font-bold text-gray-600 uppercase mb-1">{t.target_unit}:</div>
+                             <div className="flex items-center gap-2">
+                                <span className="text-xs font-mono bg-[#1a1a1a] px-2 py-1 rounded text-gray-300 border border-[#333] tracking-widest group-hover:border-gray-500 transition-colors">
+                                   {log.type}
+                                </span>
+                             </div>
+                          </div>
+                       </div>
+                    </div>
+                 ))}
+              </div>
+           </div>
+
+           {/* SECTION 2: SOURCE DEFINITION */}
+           <div className="w-full">
               <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
                  <Code className="text-gray-500"/> {t.source_def}
               </h3>
-              <div className="bg-[#121212] border border-[#333] rounded-lg shadow-2xl overflow-hidden font-mono text-sm">
+              <div className="bg-[#121212] border border-[#333] rounded-lg shadow-2xl overflow-hidden font-mono text-sm w-full">
                  <div className="px-4 py-3 border-b border-[#27272a] flex justify-between items-center bg-[#18181b]">
                     <div className="flex items-center gap-4">
                        <TrafficLights />
@@ -113,30 +157,6 @@ const ProfileView = ({ data, t, lang }) => {
               </div>
            </div>
 
-           {/* RIGHT COL: COMPATIBILITY LOGS */}
-           <div className="lg:col-span-5 flex flex-col justify-center">
-              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                 <GitMerge className="text-purple-500"/> {t.compatibility}
-              </h3>
-              <div className="space-y-4">
-                 {LOGS.map((log, i) => (
-                    <div key={i} className="bg-[#121212] border border-[#27272a] p-5 rounded-xl hover:border-gray-600 transition group relative overflow-hidden">
-                       <div className={`absolute left-0 top-0 bottom-0 w-1 ${log.status === 'error' ? 'bg-red-500' : log.status === 'warn' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
-                       <div className="flex justify-between items-start mb-2 pl-2">
-                          <span className={`text-xs font-bold uppercase tracking-wider ${log.status === 'error' ? 'text-red-400' : log.status === 'warn' ? 'text-amber-400' : 'text-emerald-400'}`}>{log.event}</span>
-                          <span className="font-mono text-[10px] text-gray-600">{log.time}</span>
-                       </div>
-                       <p className="text-sm text-gray-400 mb-3 font-mono pl-2">{`>> ${log.msg[lang]}`}</p>
-                       <div className="flex items-center gap-2 pl-2">
-                          <span className="text-[10px] font-bold text-gray-600 uppercase">{t.target_unit}:</span>
-                          <span className="text-[10px] font-mono bg-[#222] px-2 py-0.5 rounded text-gray-400 border border-[#333]">{log.type}</span>
-                       </div>
-                    </div>
-                 ))}
-              </div>
-           </div>
-
-        </div>
       </section>
     </>
   );
