@@ -82,7 +82,7 @@ const ProfileView = ({ data, t, lang }) => {
       {/* DETAILS SECTION */}
       <section className="relative z-10 py-24 px-6 animate-fade-in-up w-full max-w-6xl mx-auto flex flex-col gap-16">
            
-           {/* SECTION 1: COMPATIBILITY LOGS */}
+           {/* SECTION 1: COMPATIBILITY LOGS (Moved to Top) */}
            <div className="w-full">
               <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
                  <GitMerge className="text-purple-500"/> {t.compatibility}
@@ -94,32 +94,33 @@ const ProfileView = ({ data, t, lang }) => {
                        {/* Status Indicator Line */}
                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${log.status === 'error' ? 'bg-red-500' : log.status === 'warn' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
                        
-                       {/* Compact ASCII Portrait */}
+                       {/* Compact ASCII Portrait (Uses Full Art Scaled Down) */}
                        <AsciiPortrait type={log.type} variant="compact" />
 
-                       {/* Log Content */}
-                       <div className="flex flex-col w-full min-w-0">
-                          {/* Header: Event & Time */}
-                          <div className="flex justify-between items-center mb-2">
-                             <span className={`text-xs font-bold uppercase tracking-wider ${log.status === 'error' ? 'text-red-400' : log.status === 'warn' ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                {log.event}
-                             </span>
-                             <span className="font-mono text-[10px] text-gray-600">{log.time}</span>
-                          </div>
+                       {/* Log Content - Fully Stacked Vertically */}
+                       <div className="flex flex-col w-full min-w-0 space-y-1">
+                          
+                          {/* 1. Event Name */}
+                          <span className={`text-xs font-bold uppercase tracking-wider ${log.status === 'error' ? 'text-red-400' : log.status === 'warn' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                              {log.event}
+                          </span>
 
-                          {/* Message */}
-                          <p className="text-sm text-gray-400 mb-4 font-mono leading-relaxed break-words">
+                          {/* 2. Time */}
+                          <span className="font-mono text-[10px] text-gray-600 mb-1 block">
+                              {log.time}
+                          </span>
+
+                          {/* 3. Message */}
+                          <p className="text-xs text-gray-400 font-mono leading-relaxed break-words border-l border-zinc-800 pl-2 my-2">
                              {`>> ${log.msg[lang]}`}
                           </p>
 
-                          {/* Target Unit */}
-                          <div className="mt-auto">
-                             <div className="text-[10px] font-bold text-gray-600 uppercase mb-1">{t.target_unit}:</div>
-                             <div className="flex items-center gap-2">
-                                <span className="text-xs font-mono bg-[#1a1a1a] px-2 py-1 rounded text-gray-300 border border-[#333] tracking-widest group-hover:border-gray-500 transition-colors">
-                                   {log.type}
-                                </span>
-                             </div>
+                          {/* 4. Target Unit */}
+                          <div className="pt-2">
+                             <div className="text-[9px] font-bold text-gray-700 uppercase mb-0.5">{t.target_unit}:</div>
+                             <span className="text-sm font-bold font-mono bg-[#222] px-2 py-1 rounded text-white border border-[#444] tracking-widest inline-block shadow-md">
+                                {log.type}
+                             </span>
                           </div>
                        </div>
                     </div>
@@ -127,7 +128,7 @@ const ProfileView = ({ data, t, lang }) => {
               </div>
            </div>
 
-           {/* SECTION 2: SOURCE DEFINITION */}
+           {/* SECTION 2: SOURCE DEFINITION (Moved Below) */}
            <div className="w-full">
               <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
                  <Code className="text-gray-500"/> {t.source_def}

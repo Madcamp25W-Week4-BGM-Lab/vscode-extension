@@ -1,7 +1,7 @@
 import React from 'react';
 
-// HIGH-FIDELITY ASCII COLLECTION (FULL SIZE)
-const FULL_ARTWORK = {
+// HIGH-FIDELITY ASCII COLLECTION
+const ARTWORK = {
   // NINJA: The "Ghost in the Shell" Hacker
   NINJA: `
       .           .
@@ -63,70 +63,47 @@ const FULL_ARTWORK = {
     `
 };
 
-// COMPACT ICONS FOR LOGS
-const COMPACT_ARTWORK = {
-  NINJA: `
-   .---.
-  |  _  |
-   \\___/
-  /     \\
-  `,
-  MECH: `
-  [###]
-  | o |
-  |___|
-  /   \\
-  `,
-  WIZARD: `
-    ____
-   (    )
-   | <  |
-   /____\\
-  `,
-  OPERATOR: `
-   /===\\
-  | O O |
-   \\_V_/
-   /   \\
-  `
-};
-
 const AsciiPortrait = ({ type, variant = 'full' }) => {
   // 1. Determine Archetype
   let bodyKey = "NINJA"; 
   let label = "UNKNOWN";
   let colorClass = "text-gray-400";
 
+  // Using brighter colors (400 instead of 500) for better contrast on dark bg
   if (type.includes('A') && type.includes('F')) {
     bodyKey = "NINJA";
     label = "STRIDER";
-    colorClass = "text-emerald-500"; 
+    colorClass = "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"; 
   } else if (type.includes('M') && type.includes('X')) {
     bodyKey = "MECH";
     label = "HEAVY";
-    colorClass = "text-rose-500"; 
+    colorClass = "text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.5)]"; 
   } else if (type.includes('M') && type.includes('F')) {
     bodyKey = "WIZARD";
     label = "ARCHITECT";
-    colorClass = "text-amber-500"; 
+    colorClass = "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]"; 
   } else if (type.includes('A') && type.includes('X')) {
     bodyKey = "OPERATOR";
     label = "DRONE";
-    colorClass = "text-blue-500"; 
+    colorClass = "text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]"; 
   }
 
   // 2. Select Traits
   const isNight = type.includes('N');
   const isDescriptive = type.includes('D');
 
-  // 3. Get Artwork based on variant
-  const isCompact = variant === 'compact';
-  const finalArt = isCompact ? COMPACT_ARTWORK[bodyKey] : FULL_ARTWORK[bodyKey];
+  // 3. Get Artwork
+  const finalArt = ARTWORK[bodyKey];
 
-  if (isCompact) {
+  // 4. Compact Mode Handling (Scaling Down)
+  if (variant === 'compact') {
     return (
-      <div className={`flex items-center justify-center p-2 bg-[#09090b] border border-[#27272a] rounded-lg w-20 h-20 shrink-0`}>
-         <pre className={`font-mono text-[8px] leading-[1.1] whitespace-pre select-none ${colorClass}`}>
+      <div className={`flex items-center justify-center bg-[#09090b] border border-[#27272a] rounded-lg w-24 h-24 shrink-0 overflow-hidden relative group`}>
+         {/* Background Glow for Compact - Increased opacity */}
+         <div className={`absolute inset-0 opacity-20 blur-xl ${colorClass.replace('text-', 'bg-').split(' ')[0]}`}></div>
+         
+         {/* Render FULL art but with tiny font size to fit - Increased size slightly */}
+         <pre className={`font-mono text-[5px] leading-[5px] whitespace-pre select-none ${colorClass} origin-center transform scale-100 group-hover:scale-110 transition-transform duration-300`}>
             {finalArt}
          </pre>
       </div>
@@ -136,8 +113,8 @@ const AsciiPortrait = ({ type, variant = 'full' }) => {
   // DEFAULT FULL RENDER
   return (
     <div className={`flex flex-col items-center justify-center p-8 border border-[#27272a] bg-[#121212] rounded-xl relative overflow-hidden group w-72 h-80 shadow-2xl`}>
-      <div className={`absolute inset-0 opacity-5 blur-3xl ${colorClass.replace('text-', 'bg-')}`}></div>
-      <pre className={`font-mono text-[11px] leading-[1.2] whitespace-pre select-none relative z-10 ${colorClass} transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-[0_0_10px_currentColor]`}>
+      <div className={`absolute inset-0 opacity-10 blur-3xl ${colorClass.replace('text-', 'bg-').split(' ')[0]}`}></div>
+      <pre className={`font-mono text-[11px] leading-[1.2] whitespace-pre select-none relative z-10 ${colorClass} transition-all duration-300 group-hover:scale-105`}>
         {finalArt}
       </pre>
       <div className="absolute bottom-6 flex gap-3 text-[10px] font-mono tracking-widest uppercase text-zinc-600">
