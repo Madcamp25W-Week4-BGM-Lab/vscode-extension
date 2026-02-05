@@ -5,11 +5,9 @@ import {
 import AsciiPortrait from './AsciiPortrait';
 import DevTools from './DevTools';
 import { COLORS, PROFILES, TRAIT_CONFIG, LOGS, UI_TEXT } from './constants';
-import { signInWithGitHub, auth } from './firebase';
-import { fetchRepoContributors, analyzeContributorInRepo } from './githubClient';
-import { onAuthStateChanged } from 'firebase/auth';
 
-// --- 1. VISUAL COMPONENTS (Unchanged) ---
+// --- 1. VISUAL COMPONENTS ---
+
 const GitGraphBackground = () => (
   <div className="fixed inset-0 z-0 pointer-events-none select-none overflow-hidden">
     <svg className="w-full h-full" viewBox="0 0 1440 1000" preserveAspectRatio="xMidYMid slice">
@@ -84,52 +82,45 @@ const CodeLine = ({ num, children }) => (
 const vscode = window.acquireVsCodeApi ? window.acquireVsCodeApi() : null;
 
 export default function App() {
-  const [token, setToken] = useState(null);
   const [view, setView] = useState('SEARCH'); 
   const [repoQuery, setRepoQuery] = useState('');
   const [contributors, setContributors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(PROFILES.ACFN); // Default to Ninja
   const [lang, setLang] = useState('en'); 
+  const [isConnected, setIsConnected] = useState(false);
 
-  // --- NEW: SHARED PROFILE LOADER ---
-  // This helper unifies the logic for both GitHub results and Local Git results
-  const loadProfile = (analysisResult) => {
-    // 1. Find the archetype in constants (e.g., "ACFN")
-    let matchedProfile = PROFILES[analysisResult.type];
-    if (!matchedProfile) matchedProfile = PROFILES.ACFN; // Fallback
-
-    // 2. Merge the static profile text with the dynamic stats
-    setData({
-      ...matchedProfile,
-      type: analysisResult.type,
-      // Use "username" from the result (works for both GitHub login and Git Author Name)
-      title: `${analysisResult.username}_${matchedProfile.title}`, 
-      stats: analysisResult.stats
-    });
-
-    // 3. Switch View
-    setView('PROFILE');
-  };
-
-  // --- NEW: HANDLE MESSAGES FROM EXTENSION ---
+  // --- MESSAGE LISTENER (The Core Bridge) ---
   useEffect(() => {
     const handleMessage = (event) => {
         const message = event.data;
-        // Handle Profile Load 
+
+        // 1. Profile Loaded (Remote or Local)
         if (message.command === 'LOAD_PROFILE') {
-          if (message.payload) {
-            loadProfile(message.payload);
-          } else {
-            console.error("Profile analysis returned null.");
-          }
-          setLoading(false);
+            const { type, username, stats } = message.payload;
+            let matchedProfile = PROFILES[type] || PROFILES.ACFN;
+            
+            // Merge static profile text with dynamic stats
+            setData({
+                ...matchedProfile,
+                type: type,
+                title: `${username}_${matchedProfile.title}`, 
+                stats: stats
+            });
+            setLoading(false);
+            setView('PROFILE');
         }
 
-        // Handle Login Success
+        // 2. Search Results (From GitHub Remote Scan)
+        if (message.command === 'SEARCH_RESULTS') {
+            setContributors(message.payload);
+            setLoading(false);
+            setView('LIST');
+        }
+
+        // 3. Login Success (GitHub Connected via VS Code)
         if (message.command === 'LOGIN_SUCCESS') {
-          const { token, user } = message.payload;
-          setToken(token);
+            setIsConnected(true);
         }
     };
     
@@ -137,88 +128,41 @@ export default function App() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // --- NEW: STARTUP LOGIC ---
+  // --- INITIAL DATA (Local Contributors) ---
   useEffect(() => {
-    if (window.INITIAL_LOCAL_DATA) {
-        // If it's an Array, it's the Contributor List
-        if (Array.isArray(window.INITIAL_LOCAL_DATA)) {
-            setContributors(window.INITIAL_LOCAL_DATA);
-            setView('LIST'); // Show the list first!
-        } 
-        // If it's an Object, it's a pre-loaded Profile (legacy behavior)
-        else {
-            loadProfile(window.INITIAL_LOCAL_DATA);
-        }
+    if (window.INITIAL_LOCAL_DATA && Array.isArray(window.INITIAL_LOCAL_DATA) && window.INITIAL_LOCAL_DATA.length > 0) {
+        setContributors(window.INITIAL_LOCAL_DATA);
+        setView('LIST');
     }
   }, []);
 
-  // --- AUTH LISTENER ---
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        const storedToken = localStorage.getItem('gh_token');
-        if (storedToken) setToken(storedToken);
-      } else {
-        setToken(null);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+  // --- HANDLERS ---
 
-  const handleLogin = async () => {
-    // Option 1: VsCode Native
-    if (vscode) {
-      vscode.postMessage({ command: 'LOGIN_GITHUB' });
-    }
-    else {
-      try {
-        const { user, token } = await signInWithGitHub();
-        setToken(token);
-        localStorage.setItem('gh_token', token); 
-      } catch (_e) {
-        alert("Login failed");
-      }
-    };
-  }
-
-  const handleScanRepo = async (e) => {
-    e.preventDefault();
-    if (!repoQuery || !token) return;
-    setLoading(true);
-    try {
-      const list = await fetchRepoContributors(token, repoQuery);
-      setContributors(list);
-      setView('LIST');
-    } catch (err) {
-      console.error("Search failed:", err);
-    } finally {
-      setLoading(false);
-    }
+  const handleLogin = () => {
+    // Triggers VS Code Auth Provider
+    if(vscode) vscode.postMessage({ command: 'LOGIN' });
   };
 
-  const handleSelectContributor = async (contributor) => {
+  const handleScanRepo = (e) => {
+    e.preventDefault();
+    if (!repoQuery) return;
     setLoading(true);
+    // Triggers Remote Search in Backend
+    if(vscode) vscode.postMessage({ command: 'SEARCH_REPO', query: repoQuery });
+  };
 
-    // A. VS CODE LOCAL MODE
-    if (vscode) {
-        // Send a message to the "Server" (Extension)
+  const handleSelectContributor = (contributor) => {
+    setLoading(true);
+    // Triggers Analysis (Backend routes to Local Git or Remote Octokit)
+    if(vscode) {
         vscode.postMessage({
-            command: 'ANALYZE_LOCAL',
+            command: 'ANALYZE',
+            source: contributor.source || 'remote', // 'local' or 'remote'
             name: contributor.name,
-            email: contributor.email 
+            email: contributor.email,
+            repoQuery: repoQuery, // Needed if remote
+            contributor: contributor // Full object needed for remote reuse
         });
-        // We don't await here; the 'message' listener above handles the response
-    } 
-    // B. GITHUB WEB MODE (Existing Logic)
-    else {
-        try {
-            const result = await analyzeContributorInRepo(token, repoQuery, contributor);
-            loadProfile(result);
-        } catch (err) {
-            alert("Analysis failed.");
-        } finally {
-            setLoading(false);
-        }
     }
   };
 
@@ -236,9 +180,9 @@ export default function App() {
          </div>
 
          <div className="flex-1 max-w-md mx-6 flex justify-center">
-            {/* Show search bar only if NOT in profile view, OR provide a way to go back */}
+            {/* SEARCH / LOGIN BAR */}
             {view === 'SEARCH' || view === 'LIST' ? (
-                !token ? (
+                !isConnected && contributors.length === 0 ? (
                     <button onClick={handleLogin} className="bg-[#238636] text-white px-5 py-2 rounded-full text-xs font-bold hover:bg-[#2ea043] flex items-center gap-2 shadow-lg transition transform hover:scale-105">
                       <Github size={16} /> CONNECT GITHUB
                     </button>
@@ -251,14 +195,13 @@ export default function App() {
                           type="text" 
                           value={repoQuery}
                           onChange={(e) => setRepoQuery(e.target.value)}
-                          placeholder="owner/repo (e.g. facebook/react)" 
+                          placeholder="Search Public Repo (e.g. facebook/react)" 
                           className="w-full bg-[#121212] border border-[#333] text-gray-300 text-xs rounded-full py-2.5 pl-10 pr-10 focus:outline-none focus:border-blue-500 focus:bg-[#1a1a1a] transition-all font-mono shadow-inner"
                         />
                         {loading && <div className="absolute inset-y-0 right-0 pr-3 flex items-center"><Loader size={14} className="animate-spin text-blue-500" /></div>}
                     </form>
                 )
             ) : (
-                // If in Profile View, shows nothing in the center or could show a "Home" button
                 <div className="text-xs text-gray-600 font-mono">Viewing Profile Analysis</div>
             )}
          </div>
@@ -273,7 +216,7 @@ export default function App() {
       {/* CONTENT AREA */}
       <section className="relative z-10 min-h-screen flex flex-col justify-center items-center px-6 pt-24 pb-12 lg:pt-32">
          
-         {/* VIEW 1: SEARCH */}
+         {/* VIEW 1: SEARCH (Only if no local data found) */}
          {view === 'SEARCH' && (
             <div className="text-center animate-fade-in max-w-lg">
               <Github size={64} className="mx-auto text-gray-700 mb-6" />
@@ -282,7 +225,7 @@ export default function App() {
             </div>
          )}
 
-         {/* VIEW 2: LIST */}
+         {/* VIEW 2: LIST (Local or Remote Results) */}
          {view === 'LIST' && (
            <div className="max-w-4xl w-full animate-fade-in">
              <button onClick={() => setView('SEARCH')} className="flex items-center gap-2 text-gray-500 hover:text-white mb-6 uppercase text-xs font-bold tracking-widest">
@@ -292,15 +235,23 @@ export default function App() {
                 <Users className="text-blue-500" size={24}/>
                 <h2 className="text-xl font-bold text-white">Active Agents</h2>
              </div>
+             
+             {loading && view === 'LIST' && (
+                <div className="flex justify-center p-12"><Loader className="animate-spin text-blue-500" size={32} /></div>
+             )}
+
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-               {contributors.map((user) => (
-                 <button key={user.name} onClick={() => handleSelectContributor(user)} className="flex items-center gap-4 p-4 bg-[#121212]/80 backdrop-blur border border-[#27272a] rounded-xl hover:border-blue-500 hover:bg-[#1a1a1a] transition text-left group">
+               {contributors.map((user, idx) => (
+                 <button key={idx} onClick={() => handleSelectContributor(user)} className="flex items-center gap-4 p-4 bg-[#121212]/80 backdrop-blur border border-[#27272a] rounded-xl hover:border-blue-500 hover:bg-[#1a1a1a] transition text-left group">
                    <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden shrink-0 border border-gray-700">
-                      {user.avatar ? <img src={user.avatar} alt={user.name} /> : <div className="w-full h-full flex items-center justify-center text-xs">?</div>}
+                      {user.avatar ? <img src={user.avatar} alt={user.name} /> : <div className="w-full h-full flex items-center justify-center text-xs text-gray-500 font-mono">{user.name.substring(0,2).toUpperCase()}</div>}
                    </div>
                    <div className="min-w-0">
                      <div className="font-bold text-gray-200 group-hover:text-blue-400 truncate">{user.name}</div>
-                     <div className="text-xs text-gray-500 font-mono">{user.commits.length} commits</div>
+                     <div className="text-xs text-gray-500 font-mono">
+                        {user.commits.length} commits 
+                        {user.source === 'local' && <span className="ml-2 text-[10px] bg-zinc-800 px-1 rounded text-zinc-400">LOCAL</span>}
+                     </div>
                    </div>
                  </button>
                ))}
@@ -312,9 +263,8 @@ export default function App() {
          {view === 'PROFILE' && (
             <div className="max-w-7xl w-full flex flex-col items-center gap-12 lg:gap-24 animate-fade-in">
                <div className="w-full flex justify-start">
-                 {/* Only show 'Back to Team' if we came from the LIST view. If we are in local mode, maybe hide it or show 'Reset' */}
-                 <button onClick={() => setView(contributors.length > 0 ? 'LIST' : 'SEARCH')} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white uppercase tracking-widest transition">
-                   <ArrowLeft size={12}/> {contributors.length > 0 ? "Back to Team" : "Back to Search"}
+                 <button onClick={() => setView('LIST')} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white uppercase tracking-widest transition">
+                   <ArrowLeft size={12}/> Back to Team
                  </button>
                </div>
 
