@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  GitMerge, Terminal, Activity, Share2, Code, ChevronDown, Globe, Search, Loader, Github, ArrowLeft, Users 
-} from 'lucide-react';
-import AsciiPortrait from './AsciiPortrait';
-import DevTools from './DevTools';
-import { COLORS, PROFILES, TRAIT_CONFIG, LOGS, UI_TEXT } from './constants';
+import { Terminal, Globe, Search, Loader, Github, ArrowLeft } from 'lucide-react';
 
-// --- 1. VISUAL COMPONENTS ---
+import DevTools from './DevTools';
+import ProfileView from './components/ProfileView'; // Adjust path
+import ListView from './components/ListView';       // Adjust path
+import { COLORS, PROFILES, UI_TEXT } from './constants';
+
+// --- VISUAL WRAPPERS ---
 
 const GitGraphBackground = () => (
   <div className="fixed inset-0 z-0 pointer-events-none select-none overflow-hidden">
@@ -17,67 +17,44 @@ const GitGraphBackground = () => (
            <stop offset="100%" stopColor="#000" stopOpacity="0" />
         </linearGradient>
       </defs>
+      
+      {/* Main Branch Line */}
       <path d="M160 1200 V-200" stroke="#333" strokeWidth="3" fill="none" />
+      
+      {/* Feature Branch Lines */}
       <path d="M60 1200 L60 700 C60 500 160 500 160 300" stroke="#52525b" strokeWidth="2" strokeDasharray="10 10" fill="none" opacity="0.4" />
       <path d="M260 1200 L260 850 C260 650 160 650 160 450" stroke="#52525b" strokeWidth="2" strokeDasharray="10 10" fill="none" opacity="0.4" />
+      
+      {/* Commit Dots & Messages */}
       <circle cx="160" cy="200" r="10" fill="#09090b" stroke="#52525b" strokeWidth="2" />
       <text x="190" y="205" className="text-xs fill-zinc-600 font-mono font-bold tracking-widest">v2.5.0</text>
+      
       <circle cx="160" cy="300" r="8" fill="#09090b" stroke="#444" strokeWidth="2" />
       <text x="190" y="305" className="text-[10px] fill-zinc-700 font-mono">merge: feat/ui</text>
+      
       <circle cx="160" cy="450" r="8" fill="#09090b" stroke="#444" strokeWidth="2" />
       <text x="190" y="455" className="text-[10px] fill-zinc-700 font-mono">merge: hotfix-api</text>
+      
       <circle cx="60" cy="700" r="6" fill="#09090b" stroke="#52525b" strokeWidth="2" />
       <text x="80" y="705" className="text-[10px] fill-zinc-600 font-mono">feat: dark_mode</text>
+      
       <circle cx="260" cy="850" r="6" fill="#09090b" stroke="#52525b" strokeWidth="2" />
       <text x="280" y="855" className="text-[10px] fill-zinc-600 font-mono">fix: memory_leak</text>
     </svg>
     <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-[#09090b] to-transparent"></div>
   </div>
 );
-
-const TrafficLights = () => (
-  <div className="flex gap-2">
-    <div className="w-3 h-3 rounded-full bg-[#ff5f57] border border-[#e0443e]"></div>
-    <div className="w-3 h-3 rounded-full bg-[#febc2e] border border-[#d89e24]"></div>
-    <div className="w-3 h-3 rounded-full bg-[#28c840] border border-[#1aab29]"></div>
-  </div>
+const BackButton = ({ onClick, label }) => (
+  <button 
+    onClick={onClick} 
+    className="group flex items-center gap-3 px-4 py-2 bg-[#121212] border border-[#333] rounded-full text-xs font-bold text-gray-400 hover:text-white hover:border-zinc-500 hover:bg-[#1a1a1a] transition-all shadow-lg mb-8"
+  >
+    <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform"/> 
+    <span className="uppercase tracking-widest">{label}</span>
+  </button>
 );
 
-const StatBar = ({ title, labelL, labelR, score, color }) => {
-  const [width, setWidth] = useState(0);
-  const isLeftDominant = score >= 50;
-  const dominantPercentage = isLeftDominant ? score : 100 - score;
-
-  useEffect(() => { 
-    const timer = setTimeout(() => setWidth(dominantPercentage), 300); 
-    return () => clearTimeout(timer);
-  }, [dominantPercentage]);
-
-  return (
-    <div className="w-full">
-      <div className="text-xs uppercase text-zinc-300 font-bold tracking-[0.2em] mb-3 text-center">{title}</div>
-      <div className="flex justify-between mb-2 font-bold tracking-tight uppercase text-xs">
-        <span className={isLeftDominant ? 'text-white' : 'text-zinc-600'}>{`<${labelL} />`}</span>
-        <span className={!isLeftDominant ? 'text-white' : 'text-zinc-600'}>{`<${labelR} />`}</span>
-      </div>
-      <div className={`h-3 bg-[#1a1a1a] border border-[#333] w-full relative rounded-full overflow-hidden flex ${isLeftDominant ? 'justify-start' : 'justify-end'}`}>
-         <div className={`h-full transition-all duration-1000 ease-out ${color} opacity-90 rounded-full`} style={{ width: `${width}%` }} />
-      </div>
-      <div className={`flex mt-1 text-[10px] text-blue-400 font-mono font-bold ${isLeftDominant ? 'justify-start' : 'justify-end'}`}>
-        <span>{dominantPercentage}% {isLeftDominant ? labelL : labelR}</span>
-      </div>
-    </div>
-  );
-};
-
-const CodeLine = ({ num, children }) => (
-  <div className="flex hover:bg-[#ffffff05] transition-colors -mx-4 px-4 leading-6">
-    <span className="text-[#4b5563] select-none w-8 text-right mr-4 shrink-0 font-mono text-[10px] pt-1">{num}</span>
-    <span className="whitespace-pre-wrap break-all">{children}</span>
-  </div>
-);
-
-// --- 2. MAIN APP ---
+// --- MAIN CONTROLLER ---
 
 const vscode = window.acquireVsCodeApi ? window.acquireVsCodeApi() : null;
 
@@ -86,21 +63,17 @@ export default function App() {
   const [repoQuery, setRepoQuery] = useState('');
   const [contributors, setContributors] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState(PROFILES.ACFN); // Default to Ninja
+  const [data, setData] = useState(PROFILES.ACFN);
   const [lang, setLang] = useState('en'); 
   const [isConnected, setIsConnected] = useState(false);
 
-  // --- MESSAGE LISTENER (The Core Bridge) ---
+  // --- MESSAGE LISTENER ---
   useEffect(() => {
     const handleMessage = (event) => {
         const message = event.data;
-
-        // 1. Profile Loaded (Remote or Local)
         if (message.command === 'LOAD_PROFILE') {
             const { type, username, stats } = message.payload;
             let matchedProfile = PROFILES[type] || PROFILES.ACFN;
-            
-            // Merge static profile text with dynamic stats
             setData({
                 ...matchedProfile,
                 type: type,
@@ -110,58 +83,48 @@ export default function App() {
             setLoading(false);
             setView('PROFILE');
         }
-
-        // 2. Search Results (From GitHub Remote Scan)
         if (message.command === 'SEARCH_RESULTS') {
             setContributors(message.payload);
             setLoading(false);
             setView('LIST');
         }
-
-        // 3. Login Success (GitHub Connected via VS Code)
         if (message.command === 'LOGIN_SUCCESS') {
             setIsConnected(true);
         }
     };
-    
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // --- INITIAL DATA (Local Contributors) ---
   useEffect(() => {
+    // This checks if VS Code injected data directly into the HTML window object
     if (window.INITIAL_LOCAL_DATA && Array.isArray(window.INITIAL_LOCAL_DATA) && window.INITIAL_LOCAL_DATA.length > 0) {
+        console.log("Found initial local data:", window.INITIAL_LOCAL_DATA);
         setContributors(window.INITIAL_LOCAL_DATA);
         setView('LIST');
     }
   }, []);
 
   // --- HANDLERS ---
-
-  const handleLogin = () => {
-    // Triggers VS Code Auth Provider
-    if(vscode) vscode.postMessage({ command: 'LOGIN' });
-  };
-
+  const handleLogin = () => { if(vscode) vscode.postMessage({ command: 'LOGIN' }); };
+  
   const handleScanRepo = (e) => {
     e.preventDefault();
     if (!repoQuery) return;
     setLoading(true);
-    // Triggers Remote Search in Backend
     if(vscode) vscode.postMessage({ command: 'SEARCH_REPO', query: repoQuery });
   };
 
   const handleSelectContributor = (contributor) => {
     setLoading(true);
-    // Triggers Analysis (Backend routes to Local Git or Remote Octokit)
     if(vscode) {
         vscode.postMessage({
             command: 'ANALYZE',
-            source: contributor.source || 'remote', // 'local' or 'remote'
+            source: contributor.source || 'remote',
             name: contributor.name,
             email: contributor.email,
-            repoQuery: repoQuery, // Needed if remote
-            contributor: contributor // Full object needed for remote reuse
+            repoQuery: repoQuery,
+            contributor: contributor
         });
     }
   };
@@ -180,7 +143,6 @@ export default function App() {
          </div>
 
          <div className="flex-1 max-w-md mx-6 flex justify-center">
-            {/* SEARCH / LOGIN BAR */}
             {view === 'SEARCH' || view === 'LIST' ? (
                 !isConnected && contributors.length === 0 ? (
                     <button onClick={handleLogin} className="bg-[#238636] text-white px-5 py-2 rounded-full text-xs font-bold hover:bg-[#2ea043] flex items-center gap-2 shadow-lg transition transform hover:scale-105">
@@ -214,155 +176,40 @@ export default function App() {
       </nav>
 
       {/* CONTENT AREA */}
-      <section className="relative z-10 min-h-screen flex flex-col justify-center items-center px-6 pt-24 pb-12 lg:pt-32">
+      <section className="relative z-10 min-h-screen flex flex-col justify-start items-center px-6 pt-28 pb-12 lg:pt-36">
          
-         {/* VIEW 1: SEARCH (Only if no local data found) */}
-         {view === 'SEARCH' && (
-            <div className="text-center animate-fade-in max-w-lg">
-              <Github size={64} className="mx-auto text-gray-700 mb-6" />
-              <h1 className="text-3xl font-bold text-gray-300 mb-2">Identify Your Team</h1>
-              <p className="text-gray-500 mb-8">Enter a public repository to analyze contributor personalities.</p>
+         {/* GLOBAL BACK BUTTON */}
+         {(view === 'LIST' || view === 'PROFILE') && (
+            <div className="absolute top-24 left-0 w-full px-8 z-50 flex justify-start pointer-events-none">
+              <div className="pointer-events-auto">
+                <BackButton 
+                  onClick={() => view === 'PROFILE' ? setView('LIST') : setView('SEARCH')} 
+                  label={view === 'PROFILE' ? "Back to Team" : "Back to Search"} 
+                />
+              </div>
             </div>
          )}
 
-         {/* VIEW 2: LIST (Local or Remote Results) */}
-         {view === 'LIST' && (
-           <div className="max-w-4xl w-full animate-fade-in">
-             <button onClick={() => setView('SEARCH')} className="flex items-center gap-2 text-gray-500 hover:text-white mb-6 uppercase text-xs font-bold tracking-widest">
-               <ArrowLeft size={12}/> Back to Search
-             </button>
-             <div className="flex items-center gap-4 mb-8">
-                <Users className="text-blue-500" size={24}/>
-                <h2 className="text-xl font-bold text-white">Active Agents</h2>
-             </div>
-             
-             {loading && view === 'LIST' && (
-                <div className="flex justify-center p-12"><Loader className="animate-spin text-blue-500" size={32} /></div>
-             )}
-
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-               {contributors.map((user, idx) => (
-                 <button key={idx} onClick={() => handleSelectContributor(user)} className="flex items-center gap-4 p-4 bg-[#121212]/80 backdrop-blur border border-[#27272a] rounded-xl hover:border-blue-500 hover:bg-[#1a1a1a] transition text-left group">
-                   <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden shrink-0 border border-gray-700">
-                      {user.avatar ? <img src={user.avatar} alt={user.name} /> : <div className="w-full h-full flex items-center justify-center text-xs text-gray-500 font-mono">{user.name.substring(0,2).toUpperCase()}</div>}
-                   </div>
-                   <div className="min-w-0">
-                     <div className="font-bold text-gray-200 group-hover:text-blue-400 truncate">{user.name}</div>
-                     <div className="text-xs text-gray-500 font-mono">
-                        {user.commits.length} commits 
-                        {user.source === 'local' && <span className="ml-2 text-[10px] bg-zinc-800 px-1 rounded text-zinc-400">LOCAL</span>}
-                     </div>
-                   </div>
-                 </button>
-               ))}
-             </div>
-           </div>
+         {/* VIEWS */}
+         {(view === 'SEARCH' || view === 'LIST') && (
+            <ListView 
+                view={view}
+                contributors={contributors}
+                loading={loading}
+                handleSelectContributor={handleSelectContributor}
+            />
          )}
 
-         {/* VIEW 3: PROFILE HERO */}
          {view === 'PROFILE' && (
-            <div className="max-w-7xl w-full flex flex-col items-center gap-12 lg:gap-24 animate-fade-in">
-               <div className="w-full flex justify-start">
-                 <button onClick={() => setView('LIST')} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white uppercase tracking-widest transition">
-                   <ArrowLeft size={12}/> Back to Team
-                 </button>
-               </div>
-
-               <div className="flex flex-col md:flex-row items-center justify-center gap-12 lg:gap-32 text-center md:text-left">
-                  <div>
-                    <div className="text-sm font-bold text-gray-500 mb-2 tracking-[0.3em] uppercase">{t.identity_label}</div>
-                    <h1 className="text-7xl lg:text-9xl font-black text-white tracking-tighter leading-none mb-4 drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">{data.type}</h1>
-                    <div className="text-2xl lg:text-3xl font-mono text-gray-500 font-light border-l-4 border-gray-700 pl-6 inline-block">{data.title}</div>
-                  </div>
-                  <div className="transform scale-100 lg:scale-150 origin-center md:origin-left">
-                     <AsciiPortrait type={data.type} />
-                  </div>
-               </div>
-
-               <div className="w-full max-w-4xl mx-auto bg-[#121212] border border-[#27272a] p-8 lg:p-14 rounded-3xl shadow-2xl relative">
-                  <div className="absolute top-0 right-0 p-6 opacity-20 hidden md:block"><Activity size={40} /></div>
-                  <div className="flex flex-col gap-10 lg:gap-14 pt-4">
-                     <StatBar title={t.stat_granularity} labelL={t.trait_atomic} labelR={t.trait_monolithic} score={data.stats.AM} color={TRAIT_CONFIG.AM.color} />
-                     <StatBar title={t.stat_style} labelL={t.trait_concise} labelR={t.trait_descriptive} score={data.stats.CD} color={TRAIT_CONFIG.CD.color} />
-                     <StatBar title={t.stat_problem} labelL={t.trait_feature} labelR={t.trait_fixer} score={data.stats.FX} color={TRAIT_CONFIG.FX.color} />
-                     <StatBar title={t.stat_activity} labelL={t.trait_day} labelR={t.trait_night} score={data.stats.DN} color={TRAIT_CONFIG.DN.color} />
-                  </div>
-               </div>
-            </div>
+            <ProfileView 
+                data={data}
+                t={t}
+                lang={lang}
+            />
          )}
-         
-         {view === 'PROFILE' && (
-           <div className="mt-12 lg:absolute lg:bottom-10 animate-bounce text-gray-600">
-              <ChevronDown size={32} />
-           </div>
-         )}
+
       </section>
 
-      {/* --- DETAILS SECTION --- */}
-      {view === 'PROFILE' && (
-        <section className="relative z-10 py-24 px-6 animate-fade-in-up">
-           <div className="max-w-6xl mx-auto grid lg:grid-cols-12 gap-12">
-              
-              {/* LEFT COL: SOURCE DEFINITION */}
-              <div className="lg:col-span-7">
-                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                    <Code className="text-gray-500"/> {t.source_def}
-                 </h3>
-                 <div className="bg-[#121212] border border-[#333] rounded-lg shadow-2xl overflow-hidden font-mono text-sm">
-                    <div className="px-4 py-3 border-b border-[#27272a] flex justify-between items-center bg-[#18181b]">
-                       <div className="flex items-center gap-4">
-                          <TrafficLights />
-                          <span className="text-xs text-gray-400 font-bold opacity-75">profile.js</span>
-                       </div>
-                       <div className="text-[10px] font-bold text-gray-600 tracking-wider">READ ONLY</div>
-                    </div>
-                    <div className="p-6 overflow-x-auto">
-                        <CodeLine num={1}><span className="text-gray-500">/**</span></CodeLine>
-                        <CodeLine num={2}>
-                           <span className="text-gray-500">* </span><span className="text-purple-400">@class</span> <span className="text-white font-bold">{data.title}</span>
-                        </CodeLine>
-                        {/* ... Rest of code lines ... */}
-                        {data.description[lang].split('\n').map((line, i) => (
-                          <CodeLine num={4 + i} key={i}>
-                             <span className="text-gray-500">* </span><span className="text-gray-300">{line}</span>
-                          </CodeLine>
-                        ))}
-                        {/* ... Closing brackets ... */}
-                        <CodeLine num={11 + data.description[lang].split('\n').length}>
-                           <span className="text-yellow-400">{'}'}</span><span className="text-white">;</span><span className="ml-1 inline-block w-2.5 h-5 bg-blue-500 align-middle animate-pulse"></span>
-                        </CodeLine>
-                    </div>
-                 </div>
-              </div>
-
-              {/* RIGHT COL: COMPATIBILITY LOGS */}
-              <div className="lg:col-span-5 flex flex-col justify-center">
-                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                    <GitMerge className="text-purple-500"/> {t.compatibility}
-                 </h3>
-                 <div className="space-y-4">
-                    {LOGS.map((log, i) => (
-                       <div key={i} className="bg-[#121212] border border-[#27272a] p-5 rounded-xl hover:border-gray-600 transition group relative overflow-hidden">
-                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${log.status === 'error' ? 'bg-red-500' : log.status === 'warn' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
-                          <div className="flex justify-between items-start mb-2 pl-2">
-                             <span className={`text-xs font-bold uppercase tracking-wider ${log.status === 'error' ? 'text-red-400' : log.status === 'warn' ? 'text-amber-400' : 'text-emerald-400'}`}>{log.event}</span>
-                             <span className="font-mono text-[10px] text-gray-600">{log.time}</span>
-                          </div>
-                          <p className="text-sm text-gray-400 mb-3 font-mono pl-2">{`>> ${log.msg[lang]}`}</p>
-                          <div className="flex items-center gap-2 pl-2">
-                             <span className="text-[10px] font-bold text-gray-600 uppercase">{t.target_unit}:</span>
-                             <span className="text-[10px] font-mono bg-[#222] px-2 py-0.5 rounded text-gray-400 border border-[#333]">{log.type}</span>
-                          </div>
-                       </div>
-                    ))}
-                 </div>
-              </div>
-
-           </div>
-        </section>
-      )}
-      
-      {/* DevTools */}
       <DevTools data={data} setData={setData} toggleTrait={() => {}} /> 
     </div>
   );
