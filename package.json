@@ -32,6 +32,11 @@
         "icon": "$(book)"
       },
       {
+        "command": "subtext.showHabits",
+        "title": "SubText: Check Habits",
+        "icon": "$(graph)"
+      },
+      {
         "command": "subtext.applyReadme",
         "title": "SubText: Apply Draft to README.md",
         "icon": "$(check)",
@@ -52,7 +57,7 @@
         }
       ],
       "editor/title": [
-        {   
+        {
           "command": "subtext.generateReadme",
           "group": "navigation",
           "when": "resourceLangId == markdown && !subtext.isDrafting"
@@ -78,10 +83,15 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.19.7",
     "@types/vscode": "^1.108.1",
-    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.39.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.52.0"
+  },
+  "dependencies": {
+    "firebase": "^12.8.0",
+    "octokit": "^5.0.5",
+    "simple-git": "^3.30.0"
   }
 }

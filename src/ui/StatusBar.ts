@@ -91,6 +91,11 @@ export class StatusBarManager {
                 detail: 'Create or update project documentation (Draft Mode)', 
                 command: 'subtext.generateReadme' 
             },
+            { 
+                label: '$(graph) Check Habits', 
+                detail: 'View your coding personality and stats', 
+                command: 'subtext.showHabits' 
+            },
             {
                 label: '$(gear) Initialize Config',
                 detail: 'Create a .subtext.json configuration file',
