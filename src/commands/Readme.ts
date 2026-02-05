@@ -3,7 +3,7 @@ import { pollForTask, BACKEND_URL, CommitPollResponse, ReadmePollResponse } from
 import { getProjectConfig } from '../utils/Config';
 
 type FactJson = {
-	repository: { name: string; type: string };
+	repository: { name: string; repo_type: string };
 	runtime?: {
 		frontend: { framework: string };
 		backend?: { language: string };
@@ -71,7 +71,7 @@ async function buildFactJson(workspaceFolder: vscode.WorkspaceFolder): Promise<F
 	return {
 		repository: {
 			name: workspaceFolder.name,
-			type: 'tool'
+			repo_type: 'tool'
 		},
 		runtime,
 		...(scripts ? { scripts } : {})
@@ -125,7 +125,7 @@ export async function startDraftMode() {
 		vscode.window.showErrorMessage('SubText: repository.type must be one of research | library | service in .subtext.json.');
 		return;
 	}
-	fact.repository.type = repoType;
+	fact.repository.repo_type = repoType;
 	const payload = {
 		fact,
 		mode: 'draft',

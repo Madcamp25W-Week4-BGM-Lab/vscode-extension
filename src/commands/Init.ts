@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DEFAULT_CONFIG } from '../utils/Config';
+import { DEFAULT_CONFIG, detectRepositoryType } from '../utils/Config';
 
 export async function createConfigFile() {
     const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -21,8 +21,13 @@ export async function createConfigFile() {
         await vscode.window.showTextDocument(doc);
     } catch {
         // 2. Create from defaults
+        const detectedType = await detectRepositoryType(rootPath);
+        const configWithType = {
+            ...DEFAULT_CONFIG,
+            repository: { type: detectedType }
+        };
         const encoder = new TextEncoder();
-        const prettyJson = JSON.stringify(DEFAULT_CONFIG, null, 4); 
+        const prettyJson = JSON.stringify(configWithType, null, 4); 
         await vscode.workspace.fs.writeFile(configUri, encoder.encode(prettyJson));
         
         // 3. Open it
