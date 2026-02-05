@@ -77,6 +77,21 @@ const CodeLine = ({ num, children }) => (
   </div>
 );
 
+const BackButton = ({ onClick, label }) => (
+  <button 
+    onClick={onClick} 
+    className="
+      group flex items-center gap-3 px-4 py-2 
+      bg-[#121212] border border-[#333] rounded-full 
+      text-xs font-bold text-gray-400 
+      hover:text-white hover:border-zinc-500 hover:bg-[#1a1a1a] 
+      transition-all shadow-lg mb-8"
+  >
+    <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform"/> 
+    <span className="uppercase tracking-widest">{label}</span>
+  </button>
+);
+
 // --- 2. MAIN APP ---
 
 const vscode = window.acquireVsCodeApi ? window.acquireVsCodeApi() : null;
@@ -214,8 +229,18 @@ export default function App() {
       </nav>
 
       {/* CONTENT AREA */}
-      <section className="relative z-10 min-h-screen flex flex-col justify-center items-center px-6 pt-24 pb-12 lg:pt-32">
-         
+      <section className="relative z-10 min-h-screen flex flex-col justify-start items-center px-6 pt-28 pb-12 lg:pt-36">
+         {(view === 'LIST' || view === 'PROFILE') && (
+            <div className="absolute top-24 left-0 w-full px-8 z-50 flex justify-start pointer-events-none">
+              <div className="pointer-events-auto"> {/* Re-enable clicks for the button */}
+                <BackButton 
+                  onClick={() => view === 'PROFILE' ? setView('LIST') : setView('SEARCH')} 
+                  label={view === 'PROFILE' ? "Back to Team" : "Back to Search"} 
+                />
+              </div>
+            </div>
+          )}
+
          {/* VIEW 1: SEARCH (Only if no local data found) */}
          {view === 'SEARCH' && (
             <div className="text-center animate-fade-in max-w-lg">
@@ -228,13 +253,10 @@ export default function App() {
          {/* VIEW 2: LIST (Local or Remote Results) */}
          {view === 'LIST' && (
            <div className="max-w-4xl w-full animate-fade-in">
-             <button onClick={() => setView('SEARCH')} className="flex items-center gap-2 text-gray-500 hover:text-white mb-6 uppercase text-xs font-bold tracking-widest">
-               <ArrowLeft size={12}/> Back to Search
-             </button>
-             <div className="flex items-center gap-4 mb-8">
-                <Users className="text-blue-500" size={24}/>
-                <h2 className="text-xl font-bold text-white">Active Agents</h2>
-             </div>
+            <div className="flex items-center gap-4 mb-8">
+              <Users className="text-blue-500" size={24}/>
+              <h2 className="text-xl font-bold text-white">Active Agents</h2>
+            </div>
              
              {loading && view === 'LIST' && (
                 <div className="flex justify-center p-12"><Loader className="animate-spin text-blue-500" size={32} /></div>
@@ -262,12 +284,6 @@ export default function App() {
          {/* VIEW 3: PROFILE HERO */}
          {view === 'PROFILE' && (
             <div className="max-w-7xl w-full flex flex-col items-center gap-12 lg:gap-24 animate-fade-in">
-               <div className="w-full flex justify-start">
-                 <button onClick={() => setView('LIST')} className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white uppercase tracking-widest transition">
-                   <ArrowLeft size={12}/> Back to Team
-                 </button>
-               </div>
-
                <div className="flex flex-col md:flex-row items-center justify-center gap-12 lg:gap-32 text-center md:text-left">
                   <div>
                     <div className="text-sm font-bold text-gray-500 mb-2 tracking-[0.3em] uppercase">{t.identity_label}</div>
