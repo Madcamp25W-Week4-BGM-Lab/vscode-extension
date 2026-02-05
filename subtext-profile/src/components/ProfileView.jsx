@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Code, GitMerge, ChevronDown, TrafficLights as TrafficIcon } from 'lucide-react'; 
+import { Activity, Code, GitMerge, ChevronDown } from 'lucide-react'; 
 import AsciiPortrait from '../AsciiPortrait'; 
 import { TRAIT_CONFIG, LOGS } from '../constants';
 
